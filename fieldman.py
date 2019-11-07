@@ -7,6 +7,12 @@ PORT = 45678
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
 
-    to_send = input(":> ")
+    while True:  # Using break statement to emulate do-while loop.
 
-    s.sendall(bytes(to_send, 'utf-8'))
+        to_send = input(":> ")
+        if to_send == 'quit' or \
+            to_send == 'exit' or \
+            to_send == 'q':
+            break
+
+        s.sendall(bytes(to_send, 'utf-8'))
