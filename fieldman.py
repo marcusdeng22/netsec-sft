@@ -27,8 +27,6 @@ def main():
                 from_file = file.read(block_size_bytes)
                     # Result is a bytes-like object of x bytes, though each element
                     # is an int already.
-                print("from_file:", from_file)
-                
 
                 # If end of file,
                 if len(from_file) < block_size_bytes:
@@ -39,34 +37,33 @@ def main():
 
                     break
                 
-                # else, process a block of bytes at a time.
+                # else, process one block of bytes at a time.
+                print("from_file: {0}".format(from_file))
 
                 # Convert it into a proper integer bitstring.
                 unencrypted_int = 0
                 for idx, byte in enumerate(from_file):
                     unencrypted_int = (unencrypted_int << 8) | byte
-                    print('{a:0{b}b} {c:08b} {d}'.format(a=unencrypted_int, b=idx*8, c=byte, d=byte))
+                    #print('{a:0{b}b} {c:08b} {d}'.format(a=unencrypted_int, b=idx*8, c=byte, d=byte))
                 
-                print('\nUnencrypted integer: {0:0>{1}b}'.format(unencrypted_int, block_size_bytes*8))
+                #print('\nUnencrypted integer: {0:0>{1}b}'.format(unencrypted_int, block_size_bytes*8))
 
                 # Encrypt it by XOR'ing it with the key.
                 encrypted_int = unencrypted_int ^ SECRET_KEY
-                print('Encrypted integer: {0:0>{1}b}'.format(encrypted_int, block_size_bytes*8))
+                #print('Encrypted integer: {0:0>{1}b}'.format(encrypted_int, block_size_bytes*8))
 
                 # Convert it back to a string object (so we can encode it).
                 # Each bit is a character.
                 encrypted_bitstring = '{0:0>{1}b}'.format(encrypted_int, block_size_bytes*8)
-                print('Encrypted bitstring:', encrypted_bitstring)
+                #print('Encrypted bitstring:', encrypted_bitstring)
 
                 # Convert to bytes (to send over network).
                 # Each bit is a byte.
                 encrypted_bytes = encrypted_bitstring.encode('utf-8')
-                print("Encrypted bytes:", encrypted_bytes)
+                #print("Encrypted bytes:", encrypted_bytes)
 
                 # Send over network.
                 s.sendall(encrypted_bytes)
-
-                break
 
 
 if __name__ == '__main__':
