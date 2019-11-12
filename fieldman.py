@@ -1,4 +1,5 @@
 
+import sys
 import socket
 import hashlib
 import binascii
@@ -10,57 +11,54 @@ length_to_print = 8
 def main():
     # Make a dumb secret key
     SECRET_KEY = '0123456789abcdef'
+    block_size_bytes = len(SECRET_KEY)
+    SECRET_KEY = [binascii.hexlify(c.encode('utf-8')) for c in SECRET_KEY]
+    SECRET_KEY = bit_stringify(SECRET_KEY)
     print(SECRET_KEY)
 
-    key_bitstring = ''
-    for c in SECRET_KEY:
-        key_bitstring += '{0:04b}'.format(int(c, 16))
-    #print(bitstring)
-
-    for i in range(0, len(key_bitstring), 8):
-        print(key_bitstring[i:i+8], end=' ')
-    print(len(key_bitstring))
-
-    #print(int(SECRET_KEY, 16))
-    #print(int(bitstring, 2))
-
-    SECRET_KEY = int(SECRET_KEY, 16)
-    #print(SECRET_KEY ^ SECRET_KEY)
 
 
+    HOST = 'localhost'
+    PORT = 45678
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((HOST, PORT))
 
-    secret_message = 'The man in Black fled across the Desert, and the Gunslinger followed.'
-    for c in secret_message[:length_to_print]:
-        print('{0:>8}'.format(c), end=' ')
-    print()
+        with open("input.txt", 'rb') as file:
+                
+            while True:
+                # Read a block of bytes from the file.
+                from_file = file.read(block_size_bytes)
+                    # Result is a bytes-like object of x bytes, though each element
+                    # is an int already.
 
-    secret_nums = bit_stringify(secret_message)
+                if len(from_file) < block_size_bytes:
+                    s.sendall(from_file)
+                    break
+                    # Only XOR as much of the key as there is message.
+                    # Shift left or right?
+                    
 
-    # We have a secret block, finally.
-    print('secret:    {0:0>64b}'.format(secret_nums))
-    print('key:       {0:0>64b}'.format(SECRET_KEY))
-    secret_block = secret_nums ^ SECRET_KEY
-    print('ecnrypted: {0:0>64b}'.format(secret_block))
+                s.sendall(from_file)
 
 
 
-    # HOST = 'localhost'
-    # PORT = 45678
-    # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    #     s.connect((HOST, PORT))
 
-    #     # Iterate over the message block by block in here.
-    #     #for i in range
 
-    #     s.sendall(bytes(SECRET_MESSAGE, 'utf-8'))
+    # secret_message = 'The man in Black fled across the Desert, and the Gunslinger followed.'
+    # for c in secret_message[:length_to_print]:
+    #     print('{0:>8}'.format(c), end=' ')
+    # print()
 
-    #     # while True:  # Using break statement to emulate do-while loop.
-    #         # to_send = input(":> ")
-    #         # if to_send == 'quit' or \
-    #         #     to_send == 'exit' or \
-    #         #     to_send == 'q':
-    #         #     break
-    #         # s.sendall(bytes(to_send, 'utf-8'))
+    # secret_nums = bit_stringify(secret_message)
+
+    # # We have a secret block, finally.
+    # print('secret:    {0:0>64b}'.format(secret_nums))
+    # print('key:       {0:0>64b}'.format(SECRET_KEY))
+    # secret_block = secret_nums ^ SECRET_KEY
+    # print('ecnrypted: {0:0>64b}'.format(secret_block))
+
+
+
 
 
 # Takes the entire message as a string.
@@ -70,22 +68,23 @@ def main():
 #   at a time instead of the whole message.
 def bit_stringify(inp_str):
 
-    # Convert the string to hex
-    secret_chars = [binascii.hexlify(c.encode('utf-8')) for c in inp_str]
+    # # Convert the string to hex
+    # secret_chars = [binascii.hexlify(c.encode('utf-8')) for c in inp_str]
 
-    # Check out some print formattings
-    for i in secret_chars[:length_to_print]:
-        print('{0:8x}'.format(int(i, 16)), end=' ')
-    print()
+    # # Check out some print formattings
+    # for i in secret_chars[:length_to_print]:
+    #     print('{0:8x}'.format(int(i, 16)), end=' ')
+    # print()
 
-    for i in secret_chars[:length_to_print]:
-        print('{0:8}'.format(int(i, 16)), end=' ')
-    print()
+    # for i in secret_chars[:length_to_print]:
+    #     print('{0:8}'.format(int(i, 16)), end=' ')
+    # print()
 
-    for i in secret_chars[:length_to_print]:
-        print('{0:08b}'.format(int(i, 16)), end=' ')
-    print('\n')
+    # for i in secret_chars[:length_to_print]:
+    #     print('{0:08b}'.format(int(i, 16)), end=' ')
+    # print('\n')
 
+    secret_chars = inp_str
 
     # Combine the elements into a 64 bit bitstring 8 bits at a time
     #   and combine them.
