@@ -52,9 +52,11 @@ def main():
                 buff += incoming
 
                 # Want at least block_size bytes to XOR with our key.
-                while len(buff) >= block_size_bytes:
-                    # Receive a block of encrypted bytes. Each byte is one bit of the bitstring.
+                num_bytes = len(buff) // 8  # Each byte is one bit of the bitstring.
+                while num_bytes >= block_size_bytes:
+                    # Receive a block of encrypted bytes.
                     encrypted_bytes, buff = buff[:block_size_bytes*8], buff[block_size_bytes*8:]
+                    num_bytes -= block_size_bytes
                     #print('Encrypted bytes:', encrypted_bytes)
 
                     # Decode the encrypted bytes to get a bitstring. Each character is one bit.
@@ -85,9 +87,38 @@ def main():
                     print("to_file: {0}".format(to_file))
                 
             # Deal with the last less-than-block_size bytes of data
-            print('\"', buff.decode('utf-8'), '\"\nfinished.', sep='')
-                
+            #print()
+            #num_bytes = len(buff) // 8  # already have from outside while loop.
+            print("num_bytes:", num_bytes)
 
+            # Destroy the key until its length is the same as the final block length.
+            shift = block_size_bytes - num_bytes
+            print("Shift", shift)
+            temp_sec_key = SECRET_KEY >> shift*8
+            print('temp_sec_key: {0:0>{1}b}'.format(temp_sec_key, num_bytes*8))
+
+            encrypted_bitstring = buff.decode('utf-8')
+            print('Encrypted bitstring:', encrypted_bitstring)
+
+            encrypted_int = int(encrypted_bitstring, 2)
+            print('Encrypted integer: {0:0>{1}b}'.format(encrypted_int, num_bytes*8))
+            
+            decrypted_int = encrypted_int ^ temp_sec_key
+            print('Decrypted integer: {0:0>{1}b}'.format(decrypted_int, num_bytes*8))
+
+            int_list = []
+            for i in range(num_bytes):
+                # Take the 8 LSB and insert it at front of list
+                lsb = 0b11111111 & decrypted_int
+                int_list.insert(0, lsb)
+                #print('{a:0{b}b} {c:08b} {d}'.format(a=decrypted_int, b=(block_size_bytes*8)-(i*8), c=lsb, d=int_list[0]))
+                decrypted_int >>= 8  # Until decrypted_int is no more
+
+            # Convert list_int into a bytes object.
+            to_file = bytes(int_list)
+            print("to_file: {0}, finished".format(to_file))
+
+                
 if __name__ == '__main__':
     print("hello there, fool!")
     main()

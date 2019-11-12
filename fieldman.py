@@ -30,11 +30,33 @@ def main():
 
                 # If end of file,
                 if len(from_file) < block_size_bytes:
-                    s.sendall(from_file)
                     # Only XOR as much of the key as there is message.
-                    # Shift left or right?
-                    print('\"', from_file.decode('utf-8'), '\"\nfinished.', sep='')
+                    num_bytes = len(from_file)
+                    print("from_file: {0} ({1} bytes), finished".format(from_file, num_bytes))
+                    
+                    # Destroy the key until its length is the same as the final block length.
+                    shift = block_size_bytes - num_bytes
+                    print("Shift", shift)
+                    temp_sec_key = SECRET_KEY >> shift*8
+                    print('temp_sec_key: {0:0>{1}b}'.format(temp_sec_key, num_bytes*8))
 
+                    # Convert what there is of the final block into a bitstring.
+                    unencrypted_int = 0
+                    for idx, byte in enumerate(from_file):
+                        unencrypted_int = (unencrypted_int << 8) | byte
+                    print('Unencrypted integer: {0:0>{1}b}'.format(unencrypted_int, num_bytes*8))
+
+                    # Encrypt the final block
+                    final_enc_block = unencrypted_int ^ temp_sec_key
+                    print('Encrypted integer: {0:0>{1}b}'.format(final_enc_block, num_bytes*8))
+
+                    encrypted_bitstring = '{0:0>{1}b}'.format(final_enc_block, num_bytes*8)
+                    print('Encrypted bitstring:', encrypted_bitstring)
+
+                    encrypted_bytes = encrypted_bitstring.encode('utf-8')
+                    print("Encrypted bytes:", encrypted_bytes)
+
+                    s.sendall(encrypted_bytes)
                     break
                 
                 # else, process one block of bytes at a time.
