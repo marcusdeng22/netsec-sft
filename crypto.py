@@ -1,4 +1,13 @@
 
+from hashlib import sha256
+
+def genOTP(secret_key, extra_block):
+    h = sha256()
+    h.update(secret_key)
+    h.update(extra_block)
+    return h.hexdigest()
+
+
 def encrypt(secret_key, plainbytes, num_bytes, shift=0):
     
     # Destroy the key until its length is the same as the length of the final block.

@@ -2,15 +2,22 @@
 # Server
 
 import socket
-from crypto import encrypt, decrypt
+from crypto import genOTP, encrypt, decrypt
 
 
 def main():
-    SECRET_KEY = '0123456789abcdef'
-    block_size_bytes = len(SECRET_KEY) // 2
-    SECRET_KEY = int(SECRET_KEY, 16)
-    print('{0:0>{1}b}'.format(SECRET_KEY, block_size_bytes*8))
+    SECRET_KEY = '0123456789abcdef'.encode('utf-8')
+    IV = 'fedcba9876543210'.encode('utf-8')
 
+    key_block = genOTP(SECRET_KEY, IV)  # Receive a hex string
+    block_size_bytes = len(key_block) // 2
+        # Each character only creates 4 bits of an integer, and reading a file
+        # creates a bytes object, where each byte element is 8 bits (obviously).
+    key_block = int(key_block, 16)  # Create an integer
+    print('{0:x}'.format(key_block))
+    print()
+
+    
     HOST = 'localhost'
     PORT = 45678
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -60,9 +67,12 @@ def main():
                     num_bytes -= block_size_bytes
                     #print('Encrypted bytes:', encrypted_bytes)
 
-                    plainbytes = decrypt(SECRET_KEY, encrypted_bytes, block_size_bytes)
-
-                    print("to_file: {0}".format(plainbytes))
+                    plainbytes = decrypt(key_block, encrypted_bytes, block_size_bytes)
+                    
+                    print("to_file: {0}, dec w {1:x}".format(plainbytes, key_block))
+                    
+                    key_block = genOTP(SECRET_KEY, encrypted_bytes)
+                    key_block = int(key_block, 16)
                 
             # Deal with the last less-than-block_size bytes of data
             #print()
@@ -70,9 +80,9 @@ def main():
             #print("num_bytes:", num_bytes)
 
             shift = block_size_bytes - num_bytes
-            plainbytes = decrypt(SECRET_KEY, buff, num_bytes, shift)
+            plainbytes = decrypt(key_block, buff, num_bytes, shift)
             
-            print("to_file: {0} ({1} bytes), finished".format(plainbytes, num_bytes))
+            print("to_file: {0} ({1} bytes), dec w {2:x}. \nFinished".format(plainbytes, num_bytes, key_block))
 
 
 if __name__ == '__main__':

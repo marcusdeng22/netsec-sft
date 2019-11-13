@@ -2,18 +2,21 @@
 # Client
 
 import socket
-from crypto import encrypt, decrypt
+from crypto import genOTP, encrypt, decrypt
 
 
 def main():
-    SECRET_KEY = '0123456789abcdef'
-        # Must be of even length. Each character only creates 4 bits of an integer,
-        # and reading a file creates a bytes object, where each byte element
-        # is 8 bits (obviously).
-    block_size_bytes = len(SECRET_KEY) // 2
-    SECRET_KEY = int(SECRET_KEY, 16)
-    print('{0:0>{1}b}'.format(SECRET_KEY, block_size_bytes*8))
+    SECRET_KEY = '0123456789abcdef'.encode('utf-8')
+    IV = 'fedcba9876543210'.encode('utf-8')
+    
+    key_block = genOTP(SECRET_KEY, IV)  # Receive a hex string
+    block_size_bytes = len(key_block) // 2
+        # Each character only creates 4 bits of an integer, and reading a file
+        # creates a bytes object, where each byte element is 8 bits (obviously).
+    key_block = int(key_block, 16)  # Create an integer
+    print('{0:x}'.format(key_block))
     print()
+
 
     HOST = 'localhost'
     PORT = 45678
@@ -33,21 +36,25 @@ def main():
                 # If end of file,
                 if len(from_file) < block_size_bytes:
                     # Only XOR as much of the key as there is message.
-                    print("from_file: {0} ({1} bytes), finished".format(from_file, num_bytes))
+                    print("from_file: {0} ({1} bytes), enc w {2:x} \nFinished.".format(from_file, num_bytes, key_block))
                     
                     shift = block_size_bytes - num_bytes
-                    cipherbytes = encrypt(SECRET_KEY, from_file, num_bytes, shift)
+                    cipherbytes = encrypt(key_block, from_file, num_bytes, shift)
 
                     s.sendall(cipherbytes)
                     break
                 
                 # else, process one block of bytes at a time.
-                print("from_file: {0}".format(from_file))
+                print("from_file: {0}, enc w {1:x}".format(from_file, key_block))
 
-                cipherbytes = encrypt(SECRET_KEY, from_file, num_bytes)
+                cipherbytes = encrypt(key_block, from_file, num_bytes)
 
                 # Send over network.
                 s.sendall(cipherbytes)
+                
+                # Generate a block of secret passkey
+                key_block = genOTP(SECRET_KEY, cipherbytes)  # Receive a hex string using the ciper block we just created
+                key_block = int(key_block, 16)  # Create an integer
 
 
 if __name__ == '__main__':
