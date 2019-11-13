@@ -59,64 +59,56 @@ def main():
                     num_bytes -= block_size_bytes
                     #print('Encrypted bytes:', encrypted_bytes)
 
-                    # Decode the encrypted bytes to get a bitstring. Each character is one bit.
-                    encrypted_bitstring = encrypted_bytes.decode('utf-8')
-                    #print('Encrypted bitstring:', encrypted_bitstring)
-                    
-                    # Convert the bitstring into an integer
-                    encrypted_int = int(encrypted_bitstring, 2)
-                    #print('Encrypted integer: {0:0>{1}b}'.format(encrypted_int, block_size_bytes*8))
+                    plainbytes = decrypt(SECRET_KEY, encrypted_bytes, block_size_bytes)
 
-                    # Decrypt it by XOR'ing it with the key.
-                    decrypted_int = encrypted_int ^ SECRET_KEY
-                    #print('Decrypted integer: {0:0>{1}b}'.format(decrypted_int, block_size_bytes*8))
-
-                    # Break down the integer into a list of individual ints (so we can
-                    # convert it back into a bytes object).
-                    #print()
-                    int_list = []
-                    for i in range(block_size_bytes):
-                        # Take the 8 LSB and insert it at front of list
-                        lsb = 0b11111111 & decrypted_int
-                        int_list.insert(0, lsb)
-                        #print('{a:0{b}b} {c:08b} {d}'.format(a=decrypted_int, b=(block_size_bytes*8)-(i*8), c=lsb, d=int_list[0]))
-                        decrypted_int >>= 8  # Until decrypted_int is no more
-
-                    # Convert list_int into a bytes object.
-                    to_file = bytes(int_list)
-                    print("to_file: {0}".format(to_file))
+                    print("to_file: {0}".format(plainbytes))
                 
             # Deal with the last less-than-block_size bytes of data
             #print()
             #num_bytes = len(buff) // 8  # already have from outside while loop.
-            print("num_bytes:", num_bytes)
+            #print("num_bytes:", num_bytes)
 
-            # Destroy the key until its length is the same as the final block length.
             shift = block_size_bytes - num_bytes
-            print("Shift", shift)
-            temp_sec_key = SECRET_KEY >> shift*8
-            print('temp_sec_key: {0:0>{1}b}'.format(temp_sec_key, num_bytes*8))
-
-            encrypted_bitstring = buff.decode('utf-8')
-            print('Encrypted bitstring:', encrypted_bitstring)
-
-            encrypted_int = int(encrypted_bitstring, 2)
-            print('Encrypted integer: {0:0>{1}b}'.format(encrypted_int, num_bytes*8))
+            plainbytes = decrypt(SECRET_KEY, buff, num_bytes, shift)
             
-            decrypted_int = encrypted_int ^ temp_sec_key
-            print('Decrypted integer: {0:0>{1}b}'.format(decrypted_int, num_bytes*8))
+            print("to_file: {0} ({1} bytes), finished".format(plainbytes, num_bytes))
 
-            int_list = []
-            for i in range(num_bytes):
-                # Take the 8 LSB and insert it at front of list
-                lsb = 0b11111111 & decrypted_int
-                int_list.insert(0, lsb)
-                #print('{a:0{b}b} {c:08b} {d}'.format(a=decrypted_int, b=(block_size_bytes*8)-(i*8), c=lsb, d=int_list[0]))
-                decrypted_int >>= 8  # Until decrypted_int is no more
 
-            # Convert list_int into a bytes object.
-            to_file = bytes(int_list)
-            print("to_file: {0}, finished".format(to_file))
+def decrypt(secret_key, cipherbytes, num_bytes, shift=0):
+
+    # Destroy the key until its length is the same as the final block length.
+    # Technically this is conditional on whether we are on the last block, but
+    #   it's a one-liner so this will probably be more efficient.
+    secret_key >>= shift*8
+    #print('temp_sec_key: {0:0>{1}b}'.format(temp_sec_key, num_bytes*8))
+    
+    # Decode the encrypted bytes to get a bitstring. Each character is one bit.
+    encrypted_bitstring = cipherbytes.decode('utf-8')
+    #print('Encrypted bitstring:', encrypted_bitstring)
+
+    # Convert the bitstring into an integer
+    encrypted_int = int(encrypted_bitstring, 2)
+    #print('Encrypted integer: {0:0>{1}b}'.format(encrypted_int, block_size_bytes*8))
+
+    # Decrypt it by XOR'ing it with the key.
+    decrypted_int = encrypted_int ^ secret_key
+    #print('Decrypted integer: {0:0>{1}b}'.format(decrypted_int, block_size_bytes*8))
+
+    # Break down the integer into a list of individual ints (so we can
+    # convert it back into a bytes object).
+    #print()
+    int_list = []
+    for _ in range(num_bytes):
+        # Take the 8 LSB and insert it at front of list
+        lsb = 0b11111111 & decrypted_int
+        int_list.insert(0, lsb)
+        #print('{a:0{b}b} {c:08b} {d}'.format(a=decrypted_int, b=(block_size_bytes*8)-(i*8), c=lsb, d=int_list[0]))
+        decrypted_int >>= 8  # Until decrypted_int is no more
+
+    # Convert list_int into a bytes object.
+    plainbytes = bytes(int_list)
+
+    return plainbytes    
 
                 
 if __name__ == '__main__':
