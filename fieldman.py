@@ -2,6 +2,7 @@
 # Client
 
 import socket
+from crypto import encrypt, decrypt
 
 
 def main():
@@ -47,39 +48,6 @@ def main():
 
                 # Send over network.
                 s.sendall(cipherbytes)
-
-
-def encrypt(secret_key, plainbytes, num_bytes, shift=0):
-    
-    # Destroy the key until its length is the same as the length of the final block.
-    # Technically this is conditional on whether we are on the last block, but
-    #   it's a one-liner so this will probably be more efficient.
-    secret_key >>= shift*8
-    #print('sec_key: {0:0>{1}b}'.format(sec_key, num_bytes*8))
-
-    # Convert it into a proper integer bitstring.
-    unencrypted_int = 0
-    for idx, byte in enumerate(plainbytes):
-        unencrypted_int = (unencrypted_int << 8) | byte
-        #print('{a:0{b}b} {c:08b} {d}'.format(a=unencrypted_int, b=idx*8, c=byte, d=byte))
-    
-    #print('\nUnencrypted integer: {0:0>{1}b}'.format(unencrypted_int, block_size_bytes*8))
-
-    # Encrypt it by XOR'ing it with the key.
-    encrypted_int = unencrypted_int ^ secret_key
-    #print('Encrypted integer: {0:0>{1}b}'.format(encrypted_int, block_size_bytes*8))
-
-    # Convert it back to a string object (so we can encode it).
-    # Each bit is a character.
-    encrypted_bitstring = '{0:0>{1}b}'.format(encrypted_int, num_bytes*8)
-    #print('Encrypted bitstring:', encrypted_bitstring)
-
-    # Convert to bytes (to send over network).
-    # Each bit is a byte.
-    cipherbytes = encrypted_bitstring.encode('utf-8')
-    #print("Encrypted bytes:", encrypted_bytes)
-
-    return cipherbytes
 
 
 if __name__ == '__main__':
