@@ -2,7 +2,7 @@
 # Server
 
 import socket
-from crypto import genOTP, encrypt, decrypt
+from crypto import genOTP, crypticate
 
 
 def main():
@@ -67,7 +67,7 @@ def main():
                     num_bytes -= block_size_bytes
                     #print('Encrypted bytes:', encrypted_bytes)
 
-                    plainbytes = decrypt(key_block, encrypted_bytes)
+                    plainbytes = crypticate(key_block, encrypted_bytes)
                     
                     print("to_file: {0}, dec w {1:x}".format(plainbytes, key_block))
                     
@@ -80,7 +80,7 @@ def main():
             #print("num_bytes:", num_bytes)
 
             shift = block_size_bytes - num_bytes
-            plainbytes = decrypt(key_block, buff, shift)
+            plainbytes = crypticate(key_block, buff, shift)
             
             key_block = '{0:x}'.format(key_block)[:num_bytes*2]
             print("to_file: {0} ({1} bytes), dec w {2} \nFinished".format(plainbytes, num_bytes, key_block))

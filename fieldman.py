@@ -2,7 +2,7 @@
 # Client
 
 import socket
-from crypto import genOTP, encrypt, decrypt
+from crypto import genOTP, crypticate
 
 
 def main():
@@ -35,10 +35,10 @@ def main():
 
                 # If end of file,
                 if num_bytes < block_size_bytes:
-                    
+
                     # Only XOR as much of the key as there is message.
                     shift = block_size_bytes - num_bytes
-                    cipherbytes = encrypt(key_block, from_file, shift)
+                    cipherbytes = crypticate(key_block, from_file, shift)
 
                     key_block = '{0:x}'.format(key_block)[:num_bytes*2]
                     print("from_file: {0} ({1} bytes), enc w {2} \nFinished".format(from_file, num_bytes, key_block))
@@ -49,7 +49,7 @@ def main():
                 # else, process one block of bytes at a time.
                 print("from_file: {0}, enc w {1:x}".format(from_file, key_block))
 
-                cipherbytes = encrypt(key_block, from_file)
+                cipherbytes = crypticate(key_block, from_file)
 
                 # Send over network.
                 s.sendall(cipherbytes)
