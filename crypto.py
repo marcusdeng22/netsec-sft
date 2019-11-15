@@ -2,6 +2,17 @@
 from hashlib import sha256
 
 
+def integrity_hasher():
+    h = sha256()
+    while True:
+        input_bytes = yield
+        h.update(input_bytes)
+        yield h.digest()[:8]
+    # We only need to send the digest at the end of the message.
+    # Generator functions maintain state, so this should result in a digest
+    #   of the entire file :)
+
+
 def genOTP(secret_key, extra_block):
     h = sha256()
     h.update(secret_key)

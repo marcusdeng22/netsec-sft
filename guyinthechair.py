@@ -2,12 +2,13 @@
 # Server
 
 import socket
-from crypto import genOTP, crypticate
+from crypto import genOTP, crypticate, integrity_hasher
 
 
 def main():
     SECRET_KEY = '0123456789abcdef'.encode('utf-8')
     IV = 'fedcba9876543210'.encode('utf-8')
+    INTEGRITY_KEY = 'ASDF'.encode('utf-8')
 
     key_block = genOTP(SECRET_KEY, IV)  # Receive a hex string
     block_size_bytes = len(key_block) // 2
@@ -33,6 +34,9 @@ def main():
 
         with conn:
             #print("Connection from", addr)
+
+            h = integrity_hasher()
+            integrity_hash = ''
             
             # maintain two vars, 'buff' and 'incoming'.
             #   recv'ing into 'incoming' instead of immediately appending to
@@ -61,29 +65,65 @@ def main():
 
                 # Want at least block_size bytes to XOR with our key.
                 num_bytes = len(buff)
-                while num_bytes >= block_size_bytes:
+                while num_bytes >= block_size_bytes*2:
+                    # Can lookahead for the integrity hash by consuming until *2
+                    # Note that this requires the block size and integrity hash to
+                    #   be of the same length. Could make it more flexible by multiplying
+                    #   by however many times larger the integrity hash is, but then
+                    #   on the last block we'd need to consider the case in which the
+                    #   hash is smaller, and honestly we're going for simplicity here.
+
                     # Receive a block of encrypted bytes.
                     encrypted_bytes, buff = buff[:block_size_bytes], buff[block_size_bytes:]
                     num_bytes -= block_size_bytes
                     #print('Encrypted bytes:', encrypted_bytes)
 
                     plainbytes = crypticate(key_block, encrypted_bytes)
+
+                    next(h)
+                    integrity_hash = h.send(plainbytes)
                     
-                    print("to_file: {0}, dec w {1:x}".format(plainbytes, key_block))
+                    print("to_file: {0}, dec w {1:x}, partial hash {2}".format(plainbytes, key_block, integrity_hash))
                     
                     key_block = genOTP(SECRET_KEY, encrypted_bytes)
                     key_block = int(key_block, 16)
                 
             # Deal with the last less-than-block_size bytes of data
-            #print()
-            #num_bytes = len(buff)  # already have from outside while loop.
-            #print("num_bytes:", num_bytes)
+            #print("buff:", type(buff), buff, len(buff))
 
-            shift = block_size_bytes - num_bytes
-            plainbytes = crypticate(key_block, buff, shift)
+            # Get the actual leftover number of data bytes pertaining to the message.
+            num_bytes = num_bytes % block_size_bytes
             
+            # Break apart the message bytes from the hash bytes
+            cryptbytes, hashbytes = buff[:num_bytes], buff[num_bytes:]
+            #print(len(cryptbytes), len(hashbytes))
+            #print(cryptbytes)
+            #print(hashbytes)
+
+            # Decrypt the message bytes
+            shift = block_size_bytes - num_bytes
+            plainbytes = crypticate(key_block, cryptbytes, shift)
+            #print("plainbytes:", plainbytes)
+
+            # Final data hash
+            next(h)
+            integrity_hash = h.send(plainbytes)
+
             key_block = '{0:x}'.format(key_block)[:num_bytes*2]
-            print("to_file: {0} ({1} bytes), dec w {2} \nFinished".format(plainbytes, num_bytes, key_block))
+            print("to_file: {0} ({1} bytes), dec w {2}, final data hash {3}".format(plainbytes, num_bytes, key_block, integrity_hash))
+            
+            next(h)
+            integrity_hash = h.send(INTEGRITY_KEY)
+            print('Final keyed hash: {0}'.format(integrity_hash))
+
+            print('Received hash: {0}'.format(hashbytes))
+            for i in range(len(integrity_hash)):
+                if integrity_hash[i] != hashbytes[i]:
+                    print("Integrity check failed!")
+                    return
+            
+            print("Integrity check passed!")
+            print("Finished")
 
 
 if __name__ == '__main__':
