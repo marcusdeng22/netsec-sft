@@ -24,7 +24,7 @@ def main():
         s.bind((HOST, PORT))
         s.listen()  # Sets the server to listen for incoming requests
 
-        print("\nListening for incoming connections\n")
+        print("Listening for incoming connections\n")
         conn, addr = s.accept()  # Block here until request received
         # Accepts creates a new socket object that we'll be using to
         # communicate with the client.
@@ -60,14 +60,14 @@ def main():
                 buff += incoming
 
                 # Want at least block_size bytes to XOR with our key.
-                num_bytes = len(buff) // 8  # Each byte is one bit of the bitstring.
+                num_bytes = len(buff)
                 while num_bytes >= block_size_bytes:
                     # Receive a block of encrypted bytes.
-                    encrypted_bytes, buff = buff[:block_size_bytes*8], buff[block_size_bytes*8:]
+                    encrypted_bytes, buff = buff[:block_size_bytes], buff[block_size_bytes:]
                     num_bytes -= block_size_bytes
                     #print('Encrypted bytes:', encrypted_bytes)
 
-                    plainbytes = decrypt(key_block, encrypted_bytes, block_size_bytes)
+                    plainbytes = decrypt(key_block, encrypted_bytes)
                     
                     print("to_file: {0}, dec w {1:x}".format(plainbytes, key_block))
                     
@@ -76,13 +76,14 @@ def main():
                 
             # Deal with the last less-than-block_size bytes of data
             #print()
-            #num_bytes = len(buff) // 8  # already have from outside while loop.
+            #num_bytes = len(buff)  # already have from outside while loop.
             #print("num_bytes:", num_bytes)
 
             shift = block_size_bytes - num_bytes
-            plainbytes = decrypt(key_block, buff, num_bytes, shift)
+            plainbytes = decrypt(key_block, buff, shift)
             
-            print("to_file: {0} ({1} bytes), dec w {2:x}. \nFinished".format(plainbytes, num_bytes, key_block))
+            key_block = '{0:x}'.format(key_block)[:num_bytes*2]
+            print("to_file: {0} ({1} bytes), dec w {2} \nFinished".format(plainbytes, num_bytes, key_block))
 
 
 if __name__ == '__main__':
