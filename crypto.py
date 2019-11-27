@@ -1,7 +1,6 @@
 
 from hashlib import sha256
 
-
 def integrity_hasher():
     h = sha256()
     while True:
@@ -12,6 +11,11 @@ def integrity_hasher():
     # Generator functions maintain state, so this should result in a digest
     #   of the entire file :)
 
+def byteXor(byte1, byte2):
+    ret = bytearray()
+    for b1, b2 in zip(byte1, byte2):
+        ret.append(b1 ^ b2)
+    return ret
 
 def genOTP(secret_key, extra_block):
     h = sha256()
@@ -20,6 +24,7 @@ def genOTP(secret_key, extra_block):
     return h.hexdigest()[:16]
 
 
+# Acts as both an encrypt and decrypt function
 # Receive a bytes object, prebytes.
 # Bitshift-buildup each int-elem in prebytes into a single integer.
 # XOR that with the secret key.
@@ -67,3 +72,4 @@ def crypticate(secret_key, prebytes, shift=0):
     # print(postbytes)
 
     return postbytes
+

@@ -1,3 +1,9 @@
+# virtual environment
+sft/
+
+# old files
+old/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
