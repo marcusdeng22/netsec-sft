@@ -1,15 +1,13 @@
 
 # Server
-
 import socket
-import random
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
-from crypto import genOTP, XOR_bytes
+from crypto import XOR_bytes
 from utils import recv_file, send_file
 
 def main():
@@ -46,11 +44,11 @@ def main():
             if len(temp_mode) < 4:
                 leftover = 4 - len(temp_mode)
                 temp_mode += read_bytes(conn, leftover)
+            MODE = temp_mode.decode('utf=8').strip()
 
             # read the file name from client
-            tempFile = conn.recv(1024).decode("utf-8")
-            MODE = temp_mode.decode('utf=8').strip()
-            FILE = tempFile.strip()
+            temp_file = read_bytes(conn, 1024).decode("utf-8")
+            FILE = temp_file.strip()
 
             print("mode:", MODE)
             print("file:", FILE)

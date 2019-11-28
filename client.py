@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
-from crypto import genOTP, XOR_bytes
+from crypto import XOR_bytes
 from utils import send_file, recv_file
 
 
@@ -50,11 +50,11 @@ def main():
             return
 
         # send the mode and file name so server knows what to do
-        tempMode = "up  " if MODE == "up" else "down"
-        s.sendall(tempMode.encode("utf-8"))
+        temp_mode = "up  " if MODE == "up" else "down"
+        s.sendall(temp_mode.encode("utf-8"))
 
-        tempFile = " " * (1024 - len(FILE)) + FILE
-        s.sendall(tempFile.encode("utf-8"))
+        temp_file = " " * (1024 - len(FILE)) + FILE
+        s.sendall(temp_file.encode("utf-8"))
 
         # select mode, and execute
         if MODE == "up":
