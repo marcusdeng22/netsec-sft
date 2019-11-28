@@ -111,8 +111,6 @@ def main():
                 return
 
             # Otherwise, deal with the last less-than-block_size bytes of data
-            #print("buff:", type(buff), buff, len(buff))
-
             # Get the actual leftover number of data bytes pertaining to the message.
             num_bytes = num_bytes % block_size_bytes
 
@@ -122,7 +120,6 @@ def main():
             # Decrypt the message bytes
             shift = block_size_bytes - num_bytes
             plainbytes = crypticate(key_block, cryptbytes, shift)
-            #print("plainbytes:", plainbytes)
 
             # Final data hash
             next(h)
