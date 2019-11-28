@@ -67,34 +67,35 @@ def main():
                 )
             )
         
-        s.sendall(auth_token)  # 256 bytes long
-        verification = s.recv(BLOCK_SIZE_BYTES)   # XOR of secret key and IV
-        if verification == XOR_bytes(SECRET_KEY, IV):
-            print("verified server!")
-        else:
-            print("failed to verify")
-            return
-
-        # send the mode and file name so server knows what to do
-        tempMode = "up  " if MODE == "up" else "down"
-        tempFile = " " * (1024 - len(FILE)) + FILE
-        s.sendall(tempMode.encode("utf-8"))
-        s.sendall(tempFile.encode("utf-8"))
-
-        # select mode, and execute
-        if MODE == "up":
-            if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, BLOCK_SIZE_BYTES, s):
-                print("failed to upload; check if file exists")
+            s.sendall(auth_token)  # 256 bytes long
+            verification = s.recv(BLOCK_SIZE_BYTES)   # XOR of secret key and IV
+            if verification == XOR_bytes(SECRET_KEY, IV):
+                print("verified server!")
             else:
-                print("file uploaded")
-        elif MODE == "down":
-            # FILE += "_client"  # for debugging
-            if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, BLOCK_SIZE_BYTES, s):
-                print("failed to download; check if file exists")
-            else:
-                print("file downloaded")
-            s.sendall("ok".encode("utf-8")) # hack to notify server we're done
-        print("done")
+                print("failed to verify")
+                return
+
+            # send the mode and file name so server knows what to do
+            tempMode = "up  " if MODE == "up" else "down"
+            tempFile = " " * (1024 - len(FILE)) + FILE
+            s.sendall(tempMode.encode("utf-8"))
+            s.sendall(tempFile.encode("utf-8"))
+
+            # select mode, and execute
+            if MODE == "up":
+                if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, BLOCK_SIZE_BYTES, s):
+                    print("failed to upload; check if file exists")
+                else:
+                    print("file uploaded")
+            elif MODE == "down":
+                FILE = FILE.split('.')    # For testing
+                FILE = FILE[0] + "_testing." + FILE[1]
+                if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, BLOCK_SIZE_BYTES, s):
+                    print("failed to download; check if file exists")
+                else:
+                    print("file downloaded")
+                s.sendall("ok".encode("utf-8")) # hack to notify server we're done
+            print("done")
 
 if __name__ == '__main__':
     main()
