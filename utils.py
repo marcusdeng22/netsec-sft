@@ -1,5 +1,6 @@
 
 from crypto import integrity_hasher, XOR_bytes, genOTP
+from copy import deepcopy
 
 # reads a file and sends it as an encrypted bytestring and sends an integrity hash
 # returns True if successful, False if file does not exist
@@ -17,6 +18,7 @@ def send_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
         with open(fileName, 'rb') as file:
             h = integrity_hasher(BLOCK_SIZE_BYTES)
 
+            count = 0
             while True:
                 # Read block_size bytes from the file.
                 from_file = file.read(BLOCK_SIZE_BYTES)
@@ -26,7 +28,15 @@ def send_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
 
                 # Dump the plainbytes into the integrity hash
                 next(h)
-                integrity_hash = h.send(from_file)
+
+                if count == 2:
+                    temp = bytearray(from_file)
+                    temp[-1] += 1
+                    integrity_hash = h.send(temp)
+                else:
+                    integrity_hash = h.send(from_file)
+                print(integrity_hash)
+                count += 1
 
                 # If end of file,
                 if num_bytes < BLOCK_SIZE_BYTES:
@@ -40,6 +50,7 @@ def send_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
                     next(h)
                     integrity_hash = h.send(INTEGRITY_KEY)
                     s.sendall(integrity_hash)
+                    print(integrity_hash)
                     return True
 
                 # else, process one block of bytes at a time.
@@ -77,7 +88,7 @@ def recv_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
     #       allows us to maintain any bytes leftover from while loop
     #       when len(buff) < block_size.
 
-    buff = ''.encode('utf-8')
+    buff = bytearray()
     # Initialized outside of loop so we can
     #   1. append to it inside of the loop,
     #   2. deal with last less-than-block_size bytes of data after loop.
@@ -114,6 +125,7 @@ def recv_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
 
                 next(h)
                 integrity_hash = h.send(plainbytes)
+                print(integrity_hash)
 
                 key_bytes = genOTP(SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES)
 
@@ -131,9 +143,11 @@ def recv_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
     # Final data hash
     next(h)
     integrity_hash = h.send(plainbytes)
+    print(integrity_hash)
 
     next(h)
     integrity_hash = h.send(INTEGRITY_KEY)
+    print(integrity_hash)
     if integrity_hash != hashbytes:
         print("Integrity failure")
         return False
