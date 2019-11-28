@@ -94,10 +94,10 @@ def auth_server(s, SECRET_KEY, IV, BLOCK_SIZE_BYTES):
         s.sendall(auth_token)  # 256 bytes long
         verification = s.recv(BLOCK_SIZE_BYTES)   # XOR of secret key and IV
         if verification == XOR_bytes(SECRET_KEY, IV):
-            print("verified server!")
+            print("Successfully authenticated server!")
             return True
         else:
-            print("failed to verify")
+            print("Failed to authenticate server")
             return False
 
 
