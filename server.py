@@ -2,14 +2,16 @@
 # Server
 
 import socket
-from crypto import genOTP, XOR_bytes
-from utils import recv_file, send_file
 import random
+import secrets
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+
+from crypto import genOTP, XOR_bytes
+from utils import recv_file, send_file
 
 def main():
     HOST = 'localhost'
@@ -55,13 +57,23 @@ def main():
                 # import secrets    #testing for failed authentication
                 # IV = secrets.token_bytes(16)
                 verification = XOR_bytes(SECRET_KEY, IV)
+                #verification = secrets.token_bytes(BLOCK_SIZE_BYTES)
                 conn.sendall(verification)
 
-                # read the mode and file name from client
+                temp_mode = conn.recv(4)
                 # if no data then our authentication was bad and the client closed the connection
-                tempMode = conn.recv(4).decode("utf-8")
+                if not temp_mode:
+                    print("Authentication failure")
+                    return
+
+                # Guarantee we read 4 bytes of mode from client
+                if len(temp_mode) < 4:
+                    leftover = 4 - len(temp_mode)
+                    temp_mode += read_bytes(conn, leftover)
+
+                # read the file name from client
                 tempFile = conn.recv(1024).decode("utf-8")
-                MODE = tempMode.strip()
+                MODE = temp_mode.decode('utf=8').strip()
                 FILE = tempFile.strip()
                 FILE = FILE.split('.')    # For testing
                 FILE = FILE[0] + "_testing." + FILE[1]
@@ -80,6 +92,14 @@ def main():
                     else:
                         print("file sent")
                 print("done")
+
+
+def read_bytes(conn, count):
+    buff = bytearray()
+    while len(buff) < count:
+        leftover = count - len(buff)
+        buff += conn.recv(leftover)
+    return bytes(buff)
 
 
 if __name__ == '__main__':
