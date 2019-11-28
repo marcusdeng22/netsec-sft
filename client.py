@@ -35,11 +35,8 @@ def main():
     INTEGRITY_KEY[15] += 1
     INTEGRITY_KEY = bytes(INTEGRITY_KEY)
 
-    key_block = genOTP(SECRET_KEY, IV)  # Receive a hex string
-    block_size_bytes = len(key_block) // 2
-        # Each character only creates 4 bits of an integer, and reading a file
-        # creates a bytes object, where each byte element is 8 bits (obviously).
-    key_block = int(key_block, 16)  # Create an integer
+    key_bytes = genOTP(SECRET_KEY, IV)
+    block_size_bytes = len(key_bytes)
 
 
     HOST = 'localhost'
@@ -76,13 +73,13 @@ def main():
 
         # select mode, and execute
         if MODE == "up":
-            if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
+            if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, block_size_bytes, s):
                 print("failed to upload; check if file exists")
             else:
                 print("file uploaded")
         elif MODE == "down":
             # FILE += "_client"  # for debugging
-            if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
+            if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, block_size_bytes, s):
                 print("failed to download; check if file exists")
             else:
                 print("file downloaded")

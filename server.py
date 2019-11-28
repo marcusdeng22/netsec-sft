@@ -32,17 +32,16 @@ def main():
             enc_auth_token = conn.recv(256)  #32 byte long key + iv encrypted message is 256 bytes
             auth_token = PRIVATE_KEY.decrypt(enc_auth_token,
                 padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+            
             SECRET_KEY = auth_token[:16]
             IV = auth_token[16:]
             # create integrity key from received secret key: +1
             INTEGRITY_KEY = bytearray(SECRET_KEY)
             INTEGRITY_KEY[15] += 1
             INTEGRITY_KEY = bytes(INTEGRITY_KEY)
-            key_block = genOTP(SECRET_KEY, IV)  # Receive a hex string
-            block_size_bytes = len(key_block) // 2
-                # Each character only creates 4 bits of an integer, and reading a file
-                # creates a bytes object, where each byte element is 8 bits (obviously).
-            key_block = int(key_block, 16)  # Create an integer
+
+            key_block = genOTP(SECRET_KEY, IV)
+            block_size_bytes = len(key_block)
 
             # send back verification: SECRET_KEY XOR IV
             # import secrets    #testing for failed authentication

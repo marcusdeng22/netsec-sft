@@ -17,49 +17,25 @@ def XOR_bytes(byte1, byte2):
     ret = bytearray()
     for b1, b2 in zip(byte1, byte2):
         ret.append(b1 ^ b2)
-    return ret
+    return bytes(ret)
 
-# generates a 16 byte hash from a secret key and IV
+# generates a 16 byte hash from a secret key and IV/cryptoblock
 def genOTP(secret_key, extra_block):
     h = sha256()
     h.update(secret_key)
     h.update(extra_block)
-    return h.hexdigest()[:16]
+    return h.digest()[:8]
 
-# Acts as both an encrypt and decrypt function
-# Receive a bytes object, prebytes.
-# Bitshift-buildup each int-elem in prebytes into a single integer.
-# XOR that with the secret key.
-# Bitshift-breakdown the integer down into a list of int-elems.
-# Turn the result back into a bytes object, postbytes.
-def crypticate(secret_key, prebytes, shift=0):
-    num_bytes = len(prebytes)
-    block_size_bytes = num_bytes + shift
+# XORs two bytes objects together
+def crypticate(secret_key, prebytes):
+    # Make the key the same length as the final block.
+    if len(secret_key) > len(prebytes):
+        secret_key = secret_key[:len(prebytes)]
 
-    # Destroy the key until its length is the same as the length of the final block.
-    # Technically this is conditional on whether we are on the last block, but
-    #   it's a one-liner so this will probably be more efficient than a branch.
-    secret_key >>= shift*8
-    # Convert the prebytes into a proper integer bitstring.
-    pre_int = 0
-    for idx, byte in enumerate(prebytes):
-        pre_int = (pre_int << 8) | byte
-
-    # Encrypt/Decrypt it by XOR'ing it with the key.
-    post_int = pre_int ^ secret_key
-
-    # Break down the integer into a list of individual ints (so we can
-    # convert it back into a bytes object).
-    int_list = []
-    for i in range(num_bytes):
-        # Take the 8 LSB and insert it at front of list
-        lsb = 0b11111111 & post_int
-        int_list.insert(0, lsb)
-        post_int >>= 8  # Until post_int is no more
-
-    # Convert list_int into a bytes object. Each integer in the list literally
-    # becomes an integer in the bytes object.
-    postbytes = bytes(int_list)
+    postbytes = bytearray()
+    for b1, b2 in zip(secret_key, prebytes):
+        postbytes.append(b1 ^ b2)
+        
     return postbytes
 
 # reads a file and sends it as an encrypted bytestring and sends an integrity hash
@@ -83,10 +59,8 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
                 # If end of file,
                 if num_bytes < block_size_bytes:
                     # Only XOR as much of the key as there is message.
-                    shift = block_size_bytes - num_bytes
-                    cipherbytes = crypticate(key_block, from_file, shift)
+                    cipherbytes = crypticate(key_block, from_file)
 
-                    key_block = '{0:x}'.format(key_block)[:num_bytes*2]
                     # Send the last of the encrypted message
                     s.sendall(cipherbytes)
 
@@ -103,8 +77,7 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
                 s.sendall(cipherbytes)
 
                 # Generate a block of secret passkey
-                key_block = genOTP(SECRET_KEY, cipherbytes)  # Receive a hex string using the ciper block we just created
-                key_block = int(key_block, 16)  # Create an integer
+                key_block = genOTP(SECRET_KEY, cipherbytes)
     
     except FileNotFoundError:
         return False
@@ -162,7 +135,6 @@ def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
             integrity_hash = h.send(plainbytes)
 
             key_block = genOTP(SECRET_KEY, encrypted_bytes)
-            key_block = int(key_block, 16)
 
 
     # Authentication failure check
@@ -177,15 +149,12 @@ def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
     cryptbytes, hashbytes = buff[:num_bytes], buff[num_bytes:]
 
     # Decrypt the message bytes
-    shift = block_size_bytes - num_bytes
-    plainbytes = crypticate(key_block, cryptbytes, shift)
+    plainbytes = crypticate(key_block, cryptbytes)
     decryptedData += plainbytes
 
     # Final data hash
     next(h)
     integrity_hash = h.send(plainbytes)
-
-    key_block = '{0:x}'.format(key_block)[:num_bytes*2]
 
     next(h)
     integrity_hash = h.send(INTEGRITY_KEY)
