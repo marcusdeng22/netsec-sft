@@ -27,16 +27,17 @@ def main():
         print("Maximum file name size is 1024")
         return
 
-    # generate a secret key and IV
-    SECRET_KEY = secrets.token_bytes(16)
-    IV = secrets.token_bytes(16)
-    # create an integrity key from secret key + 1
+    BLOCK_SIZE_BYTES = 16
+
+    # Generate a secret key and IV
+    SECRET_KEY = secrets.token_bytes(BLOCK_SIZE_BYTES)
+    IV = secrets.token_bytes(BLOCK_SIZE_BYTES)
+    # Create an integrity key from secret key + 1
     INTEGRITY_KEY = bytearray(SECRET_KEY)
-    INTEGRITY_KEY[15] += 1
+    INTEGRITY_KEY[BLOCK_SIZE_BYTES-1] += 1
     INTEGRITY_KEY = bytes(INTEGRITY_KEY)
 
-    key_bytes = genOTP(SECRET_KEY, IV)
-    block_size_bytes = len(key_bytes)
+    key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)  # Generate first block of OTP
 
 
     HOST = 'localhost'
@@ -55,10 +56,19 @@ def main():
                 backend=default_backend()
             )
 
-        auth_token = PUBLIC_KEY.encrypt(SECRET_KEY + IV, padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
-        s.sendall(auth_token)   # is 256 bytes long
-        verification = s.recv(16)   # 16 byte XOR of secret key and IV
+            auth_token = PUBLIC_KEY.encrypt(
+                SECRET_KEY + IV,
+                padding.OAEP(
+                    mgf=padding.MGF1(
+                        algorithm=hashes.SHA256()
+                    ),
+                    algorithm=hashes.SHA256(),
+                    label=None
+                )
+            )
+        
+        s.sendall(auth_token)  # 256 bytes long
+        verification = s.recv(BLOCK_SIZE_BYTES)   # XOR of secret key and IV
         if verification == XOR_bytes(SECRET_KEY, IV):
             print("verified server!")
         else:
@@ -73,13 +83,13 @@ def main():
 
         # select mode, and execute
         if MODE == "up":
-            if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, block_size_bytes, s):
+            if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, BLOCK_SIZE_BYTES, s):
                 print("failed to upload; check if file exists")
             else:
                 print("file uploaded")
         elif MODE == "down":
             # FILE += "_client"  # for debugging
-            if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, block_size_bytes, s):
+            if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, BLOCK_SIZE_BYTES, s):
                 print("failed to download; check if file exists")
             else:
                 print("file downloaded")

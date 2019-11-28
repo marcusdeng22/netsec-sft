@@ -1,25 +1,13 @@
 
 from hashlib import sha256
 
-# creates a 8 byte hash from part of a byte string
-def integrity_hasher():
-    h = sha256()
-    while True:
-        input_bytes = yield
-        h.update(input_bytes)
-        yield h.digest()[:8]
-    # We only need to send the digest at the end of the message.
-    # Generator functions maintain state, so this should result in a digest
-    #   of the entire file :)
 
-
-# generates a 16 byte hash from a secret key and IV/cryptoblock
-def genOTP(secret_key, extra_block):
+# generates a hash from a secret key and IV/cryptoblock
+def genOTP(secret_key, extra_block, BLOCK_SIZE_BYTES):
     h = sha256()
     h.update(secret_key)
     h.update(extra_block)
-    return h.digest()[:8]
-
+    return h.digest()[:BLOCK_SIZE_BYTES]
 
 # XORs two bytes objects together
 def XOR_bytes(secret_key, prebytes):
@@ -34,17 +22,28 @@ def XOR_bytes(secret_key, prebytes):
         
     return bytes(postbytes)
 
+# Continually generates a hash from byte strings
+def integrity_hasher(BLOCK_SIZE_BYTES):
+    h = sha256()
+    while True:
+        input_bytes = yield
+        h.update(input_bytes)
+        yield h.digest()[:BLOCK_SIZE_BYTES]
+    # We only need to send the digest at the end of the message.
+    # Generator functions maintain state, so this should result in a digest
+    #   of the entire file :)
+
 
 # reads a file and sends it as an encrypted bytestring and sends an integrity hash
 # returns True if successful, False if file does not exist
-def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
+def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, s):
     try:
         with open(fileName, 'rb') as file:
-            h = integrity_hasher()
+            h = integrity_hasher(BLOCK_SIZE_BYTES)
 
             while True:
                 # Read block_size bytes from the file.
-                from_file = file.read(block_size_bytes)
+                from_file = file.read(BLOCK_SIZE_BYTES)
                     # Result is a bytes-like object of x bytes, though each element
                     # is an int already.
                 num_bytes = len(from_file)
@@ -54,7 +53,7 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
                 integrity_hash = h.send(from_file)
 
                 # If end of file,
-                if num_bytes < block_size_bytes:
+                if num_bytes < BLOCK_SIZE_BYTES:
                     # Only XOR as much of the key as there is message.
                     cipherbytes = XOR_bytes(key_block, from_file)
 
@@ -74,7 +73,7 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
                 s.sendall(cipherbytes)
 
                 # Generate a block of secret passkey
-                key_block = genOTP(SECRET_KEY, cipherbytes)
+                key_block = genOTP(SECRET_KEY, cipherbytes, BLOCK_SIZE_BYTES)
     
     except FileNotFoundError:
         return False
@@ -83,8 +82,8 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
 # writes to a file if successful decryption and matching integrity hash
 # returns True if successful write, False otherwise
 # does not remove the file on failure
-def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, conn):
-    h = integrity_hasher()
+def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, conn):
+    h = integrity_hasher(BLOCK_SIZE_BYTES)
     integrity_hash = ''
 
     # maintain two vars, 'buff' and 'incoming'.
@@ -114,7 +113,7 @@ def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
 
         # Want at least block_size bytes to XOR with our key.
         num_bytes = len(buff)
-        while num_bytes >= block_size_bytes*2:
+        while num_bytes >= BLOCK_SIZE_BYTES*2:
             # Can lookahead for the integrity hash by consuming until *2
             # Note that this requires the block size and integrity hash to
             #   be of the same length. Could make it more flexible by multiplying
@@ -123,8 +122,8 @@ def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
             #   hash is smaller, and honestly we're going for simplicity here.
 
             # Receive a block of encrypted bytes.
-            encrypted_bytes, buff = buff[:block_size_bytes], buff[block_size_bytes:]
-            num_bytes -= block_size_bytes
+            encrypted_bytes, buff = buff[:BLOCK_SIZE_BYTES], buff[BLOCK_SIZE_BYTES:]
+            num_bytes -= BLOCK_SIZE_BYTES
 
             plainbytes = XOR_bytes(key_block, encrypted_bytes)
             decryptedData += plainbytes
@@ -132,7 +131,7 @@ def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
             next(h)
             integrity_hash = h.send(plainbytes)
 
-            key_block = genOTP(SECRET_KEY, encrypted_bytes)
+            key_block = genOTP(SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES)
 
 
     # Authentication failure check
@@ -141,7 +140,7 @@ def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
 
     # Otherwise, deal with the last less-than-block_size bytes of data
     # Get the actual leftover number of data bytes pertaining to the message.
-    num_bytes = num_bytes % block_size_bytes
+    num_bytes = num_bytes % BLOCK_SIZE_BYTES
 
     # Break apart the message bytes from the hash bytes
     cryptbytes, hashbytes = buff[:num_bytes], buff[num_bytes:]

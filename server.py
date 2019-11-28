@@ -29,19 +29,28 @@ def main():
             with open("private_key.pem", "rb") as key_file:
                 PRIVATE_KEY = serialization.load_pem_private_key(
                     key_file.read(), password=None, backend=default_backend())
-            enc_auth_token = conn.recv(256)  #32 byte long key + iv encrypted message is 256 bytes
-            auth_token = PRIVATE_KEY.decrypt(enc_auth_token,
-                padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+            enc_auth_token = conn.recv(256)  # encrypted auth token is 256 bytes
+            auth_token = PRIVATE_KEY.decrypt(
+                enc_auth_token,
+                padding.OAEP(
+                    mgf=padding.MGF1(
+                        algorithm=hashes.SHA256()
+                    ),
+                    algorithm=hashes.SHA256(),
+                    label=None)
+                )
+
+            BLOCK_SIZE_BYTES = 16
             
-            SECRET_KEY = auth_token[:16]
-            IV = auth_token[16:]
-            # create integrity key from received secret key: +1
+            # Parse secret key and IV from the received message.
+            SECRET_KEY = auth_token[:BLOCK_SIZE_BYTES]
+            IV = auth_token[BLOCK_SIZE_BYTES:]
+            # Create integrity key from received secret key + 1
             INTEGRITY_KEY = bytearray(SECRET_KEY)
-            INTEGRITY_KEY[15] += 1
+            INTEGRITY_KEY[BLOCK_SIZE_BYTES-1] += 1
             INTEGRITY_KEY = bytes(INTEGRITY_KEY)
 
-            key_block = genOTP(SECRET_KEY, IV)
-            block_size_bytes = len(key_block)
+            key_block = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)  # Generate first block of OTP
 
             # send back verification: SECRET_KEY XOR IV
             # import secrets    #testing for failed authentication
@@ -62,12 +71,12 @@ def main():
             print("file:", FILE)
 
             if MODE == "up":
-                if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, conn):
+                if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, conn):
                     print("failed to save file")
                 else:
                     print("file saved!")
             elif MODE == "down":
-                if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, conn):
+                if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, conn):
                     print("failed to read file")
                 else:
                     print("file sent")
