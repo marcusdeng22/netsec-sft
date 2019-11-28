@@ -47,7 +47,7 @@ def main():
             # import secrets    #testing for failed authentication
             # IV = secrets.token_bytes(16)
             verification = XOR_bytes(SECRET_KEY, IV)
-            conn.sendall(bytes(verification))
+            conn.sendall(verification)
 
             # read the mode and file name from client
             # if no data then our authentication was bad and the client closed the connection

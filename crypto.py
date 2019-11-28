@@ -12,12 +12,6 @@ def integrity_hasher():
     # Generator functions maintain state, so this should result in a digest
     #   of the entire file :)
 
-# XORs two bytes objects together
-def XOR_bytes(byte1, byte2):
-    ret = bytearray()
-    for b1, b2 in zip(byte1, byte2):
-        ret.append(b1 ^ b2)
-    return bytes(ret)
 
 # generates a 16 byte hash from a secret key and IV/cryptoblock
 def genOTP(secret_key, extra_block):
@@ -26,8 +20,10 @@ def genOTP(secret_key, extra_block):
     h.update(extra_block)
     return h.digest()[:8]
 
+
 # XORs two bytes objects together
-def crypticate(secret_key, prebytes):
+def XOR_bytes(secret_key, prebytes):
+    
     # Make the key the same length as the final block.
     if len(secret_key) > len(prebytes):
         secret_key = secret_key[:len(prebytes)]
@@ -36,7 +32,8 @@ def crypticate(secret_key, prebytes):
     for b1, b2 in zip(secret_key, prebytes):
         postbytes.append(b1 ^ b2)
         
-    return postbytes
+    return bytes(postbytes)
+
 
 # reads a file and sends it as an encrypted bytestring and sends an integrity hash
 # returns True if successful, False if file does not exist
@@ -59,7 +56,7 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
                 # If end of file,
                 if num_bytes < block_size_bytes:
                     # Only XOR as much of the key as there is message.
-                    cipherbytes = crypticate(key_block, from_file)
+                    cipherbytes = XOR_bytes(key_block, from_file)
 
                     # Send the last of the encrypted message
                     s.sendall(cipherbytes)
@@ -71,7 +68,7 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
                     return True
 
                 # else, process one block of bytes at a time.
-                cipherbytes = crypticate(key_block, from_file)
+                cipherbytes = XOR_bytes(key_block, from_file)
 
                 # Send over network.
                 s.sendall(cipherbytes)
@@ -81,6 +78,7 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
     
     except FileNotFoundError:
         return False
+
 
 # writes to a file if successful decryption and matching integrity hash
 # returns True if successful write, False otherwise
@@ -128,7 +126,7 @@ def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
             encrypted_bytes, buff = buff[:block_size_bytes], buff[block_size_bytes:]
             num_bytes -= block_size_bytes
 
-            plainbytes = crypticate(key_block, encrypted_bytes)
+            plainbytes = XOR_bytes(key_block, encrypted_bytes)
             decryptedData += plainbytes
 
             next(h)
@@ -149,7 +147,7 @@ def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, 
     cryptbytes, hashbytes = buff[:num_bytes], buff[num_bytes:]
 
     # Decrypt the message bytes
-    plainbytes = crypticate(key_block, cryptbytes)
+    plainbytes = XOR_bytes(key_block, cryptbytes)
     decryptedData += plainbytes
 
     # Final data hash
