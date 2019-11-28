@@ -11,5 +11,6 @@ pip install cryptography
 
 ## Execution
 Use viritual environment: `source sft/bin/activate`
-Start server first: `python guyinthechair.py`
-Then start client: `python fieldman.py`
+Start server first: `python server.py`
+Then start client: `python client.py <mode> <file>`
+where `mode` is `up` or `down` for upload or download, respectively.

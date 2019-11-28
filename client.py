@@ -2,7 +2,7 @@
 # Client
 
 import socket
-from crypto import genOTP, byteXor, crypticate, integrity_hasher
+from crypto import genOTP, byteXor, readFile, writeFile
 import secrets
 import sys
 
@@ -22,7 +22,7 @@ def main():
     if MODE not in ["up", "down"]:
         print(USAGE)
         return
-    FILE = sys.argv[2]  # assumes files exist already: no error checking on client or server for nonexistent file
+    FILE = sys.argv[2]  # assumes files exist already: minimal error checking on client or server for nonexistent file
     if (len(FILE) > 1024):
         print("Maximum file name size is 1024")
         return
@@ -40,14 +40,16 @@ def main():
         # Each character only creates 4 bits of an integer, and reading a file
         # creates a bytes object, where each byte element is 8 bits (obviously).
     key_block = int(key_block, 16)  # Create an integer
-    print('{0:x}'.format(key_block))
-    print()
 
 
     HOST = 'localhost'
     PORT = 45678
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((HOST, PORT))
+        try:
+            s.connect((HOST, PORT))
+        except:
+            print("server is not reachable")
+            return
 
         # load public key of server and encrypt a message: SECRET_KEY concatenated with IV
         with open("public_key.pem", "rb") as key_file:
@@ -59,69 +61,33 @@ def main():
         auth_token = PUBLIC_KEY.encrypt(SECRET_KEY + IV, padding.OAEP(
             mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
         s.sendall(auth_token)   # is 256 bytes long
-        print("sent secret key and iv")
-
-        print("verifying...")
         verification = s.recv(16)   # 16 byte XOR of secret key and IV
         if verification == bytes(byteXor(SECRET_KEY, IV)):
-            print("verified!")
+            print("verified server!")
         else:
             print("failed to verify")
             return
 
-        # open file for reading for upload
+        # send the mode and file name so server knows what to do
+        tempMode = "up  " if MODE == "up" else "down"
+        tempFile = " " * (1024 - len(FILE)) + FILE
+        s.sendall(tempMode.encode("utf-8"))
+        s.sendall(tempFile.encode("utf-8"))
+
+        # select mode, and execute
         if MODE == "up":
-            with open("input.txt", 'rb') as file:
-            #with open("pitfalls.pptx", 'rb') as file:
-
-                h = integrity_hasher()
-
-                while True:
-                    # Read block_size bytes from the file.
-                    from_file = file.read(block_size_bytes)
-                        # Result is a bytes-like object of x bytes, though each element
-                        # is an int already.
-                    num_bytes = len(from_file)
-
-                    # Dump the plainbytes into the integrity hash
-                    next(h)
-                    integrity_hash = h.send(from_file)
-
-                    # If end of file,
-                    if num_bytes < block_size_bytes:
-
-                        # Only XOR as much of the key as there is message.
-                        shift = block_size_bytes - num_bytes
-                        cipherbytes = crypticate(key_block, from_file, shift)
-
-                        key_block = '{0:x}'.format(key_block)[:num_bytes*2]
-                        print("from_file: {0} ({1} bytes), enc w {2}, final data hash {3}".format(from_file, num_bytes, key_block, integrity_hash))
-
-                        # Send the last of the encrypted message
-                        s.sendall(cipherbytes)
-                        #print("cipherbytes:", type(cipherbytes), cipherbytes)
-
-                        # Throw in the secret integrity key and send it off
-                        next(h)
-                        integrity_hash = h.send(INTEGRITY_KEY)
-                        s.sendall(integrity_hash)
-                        print('Final keyed hash {0}'.format(integrity_hash))
-
-                        print("Finished")
-                        break
-
-                    # else, process one block of bytes at a time.
-                    print("from_file: {0}, enc w {1:x}, partial hash {2}".format(from_file, key_block, integrity_hash))
-
-                    cipherbytes = crypticate(key_block, from_file)
-
-                    # Send over network.
-                    s.sendall(cipherbytes)
-
-                    # Generate a block of secret passkey
-                    key_block = genOTP(SECRET_KEY, cipherbytes)  # Receive a hex string using the ciper block we just created
-                    key_block = int(key_block, 16)  # Create an integer
-
+            if not readFile(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
+                print("failed to upload; check if file exists")
+            else:
+                print("file uploaded")
+        elif MODE == "down":
+            # FILE += "_client"  # for debugging
+            if not writeFile(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
+                print("failed to download; check if file exists")
+            else:
+                print("file downloaded")
+            s.sendall("ok".encode("utf-8")) # hack to notify server we're done
+        print("done")
 
 if __name__ == '__main__':
     main()
