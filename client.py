@@ -2,8 +2,6 @@
 # Client
 
 import socket
-from crypto import genOTP, XOR_bytes
-from utils import send_file, recv_file
 import secrets
 import sys
 
@@ -11,6 +9,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+
+from crypto import genOTP, XOR_bytes
+from utils import send_file, recv_file
 
 
 def main():
@@ -44,53 +45,61 @@ def main():
             print("server is not reachable")
             return
 
-        # load public key of server and encrypt a message: SECRET_KEY concatenated with IV
-        with open("public_key.pem", "rb") as key_file:
-            PUBLIC_KEY = serialization.load_pem_public_key(
-                key_file.read(),
-                backend=default_backend()
-            )
+        # Authenticate server
+        if not auth_server(s, SECRET_KEY, IV, BLOCK_SIZE_BYTES):
+            return
 
-            auth_token = PUBLIC_KEY.encrypt(
-                SECRET_KEY + IV,
-                padding.OAEP(
-                    mgf=padding.MGF1(
-                        algorithm=hashes.SHA256()
-                    ),
-                    algorithm=hashes.SHA256(),
-                    label=None
-                )
-            )
-        
-            s.sendall(auth_token)  # 256 bytes long
-            verification = s.recv(BLOCK_SIZE_BYTES)   # XOR of secret key and IV
-            if verification == XOR_bytes(SECRET_KEY, IV):
-                print("verified server!")
+        # send the mode and file name so server knows what to do
+        tempMode = "up  " if MODE == "up" else "down"
+        s.sendall(tempMode.encode("utf-8"))
+        tempFile = " " * (1024 - len(FILE)) + FILE
+        s.sendall(tempFile.encode("utf-8"))
+
+        # select mode, and execute
+        if MODE == "up":
+            if not send_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
+                print("failed to upload; check if file exists")
             else:
-                print("failed to verify")
-                return
+                print("file uploaded")
+        elif MODE == "down":
+            FILE = FILE.split('.')    # For testing
+            FILE = FILE[0] + "_testing." + FILE[1]
+            if not recv_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
+                print("failed to download; check if file exists")
+            else:
+                print("file downloaded")
+            s.sendall("ok".encode("utf-8")) # hack to notify server we're done
+        print("done")
 
-            # send the mode and file name so server knows what to do
-            tempMode = "up  " if MODE == "up" else "down"
-            tempFile = " " * (1024 - len(FILE)) + FILE
-            s.sendall(tempMode.encode("utf-8"))
-            s.sendall(tempFile.encode("utf-8"))
 
-            # select mode, and execute
-            if MODE == "up":
-                if not send_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
-                    print("failed to upload; check if file exists")
-                else:
-                    print("file uploaded")
-            elif MODE == "down":
-                FILE = FILE.split('.')    # For testing
-                FILE = FILE[0] + "_testing." + FILE[1]
-                if not recv_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
-                    print("failed to download; check if file exists")
-                else:
-                    print("file downloaded")
-                s.sendall("ok".encode("utf-8")) # hack to notify server we're done
-            print("done")
+def auth_server(s, SECRET_KEY, IV, BLOCK_SIZE_BYTES):
+    # load public key of server and encrypt a message: SECRET_KEY concatenated with IV
+    with open("public_key.pem", "rb") as key_file:
+        PUBLIC_KEY = serialization.load_pem_public_key(
+            key_file.read(),
+            backend=default_backend()
+        )
+
+        auth_token = PUBLIC_KEY.encrypt(
+            SECRET_KEY + IV,
+            padding.OAEP(
+                mgf=padding.MGF1(
+                    algorithm=hashes.SHA256()
+                ),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+    
+        s.sendall(auth_token)  # 256 bytes long
+        verification = s.recv(BLOCK_SIZE_BYTES)   # XOR of secret key and IV
+        if verification == XOR_bytes(SECRET_KEY, IV):
+            print("verified server!")
+            return True
+        else:
+            print("failed to verify")
+            return False
+
 
 if __name__ == '__main__':
     main()
