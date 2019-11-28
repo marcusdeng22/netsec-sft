@@ -55,7 +55,9 @@ def main():
             tempMode = conn.recv(4).decode("utf-8")
             tempFile = conn.recv(1024).decode("utf-8")
             MODE = tempMode.strip()
-            FILE = tempFile.strip()# + "_server"    #for testing
+            FILE = tempFile.strip()
+            FILE = FILE.split('.')    # For testing
+            FILE = FILE[0] + "_testing." + FILE[1]
 
             print("mode:", MODE)
             print("file:", FILE)
