@@ -4,7 +4,6 @@
 import socket
 import secrets
 import sys
-from time import sleep
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -52,9 +51,7 @@ def main():
 
         # send the mode and file name so server knows what to do
         tempMode = "up  " if MODE == "up" else "down"
-        s.sendall(tempMode.encode("utf-8")[:2])
-        sleep(2)
-        s.sendall(tempMode.encode("utf-8")[2:])
+        s.sendall(tempMode.encode("utf-8"))
 
         tempFile = " " * (1024 - len(FILE)) + FILE
         s.sendall(tempFile.encode("utf-8"))

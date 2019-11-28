@@ -3,7 +3,6 @@
 
 import socket
 import random
-import secrets
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -54,10 +53,7 @@ def main():
                 IV = auth_token[BLOCK_SIZE_BYTES:]
 
                 # send back verification: SECRET_KEY XOR IV
-                # import secrets    #testing for failed authentication
-                # IV = secrets.token_bytes(16)
                 verification = XOR_bytes(SECRET_KEY, IV)
-                #verification = secrets.token_bytes(BLOCK_SIZE_BYTES)
                 conn.sendall(verification)
 
                 temp_mode = conn.recv(4)
