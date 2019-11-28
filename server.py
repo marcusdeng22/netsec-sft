@@ -27,67 +27,73 @@ def main():
         # for new connections, as we can see with the different port.
 
         with conn:
-            # Authenticate client: open private key to decrypt message: secret key concatenated with IV
-            with open("private_key.pem", "rb") as key_file:
-                PRIVATE_KEY = serialization.load_pem_private_key(
-                    key_file.read(),
-                    password=None,
-                    backend=default_backend()
-                )
-                enc_auth_token = conn.recv(256)  # encrypted auth token is 256 bytes
-                auth_token = PRIVATE_KEY.decrypt(
-                    enc_auth_token,
-                    padding.OAEP(
-                        mgf=padding.MGF1(
-                            algorithm=hashes.SHA256()
-                        ),
-                        algorithm=hashes.SHA256(),
-                        label=None
-                    )
-                )
+            BLOCK_SIZE_BYTES = 16
 
-                BLOCK_SIZE_BYTES = 16
-                
-                # Parse secret key and IV from the received message.
-                SECRET_KEY = auth_token[:BLOCK_SIZE_BYTES]
-                IV = auth_token[BLOCK_SIZE_BYTES:]
+            # Authenticate self to client: open private key to decrypt message: secret key concatenated with IV
+            SECRET_KEY, IV = get_secrets(conn, BLOCK_SIZE_BYTES)
 
-                # send back verification: SECRET_KEY XOR IV
-                verification = XOR_bytes(SECRET_KEY, IV)
-                conn.sendall(verification)
+            # send back verification: SECRET_KEY XOR IV
+            verification = XOR_bytes(SECRET_KEY, IV)
+            conn.sendall(verification)
 
-                temp_mode = conn.recv(4)
-                # if no data then our authentication was bad and the client closed the connection
-                if not temp_mode:
-                    print("Authentication failure")
-                    return
+            temp_mode = conn.recv(4)
+            # if no data then our authentication was bad and the client closed the connection
+            if not temp_mode:
+                print("Authentication failure")
+                return
 
-                # Guarantee we read 4 bytes of mode from client
-                if len(temp_mode) < 4:
-                    leftover = 4 - len(temp_mode)
-                    temp_mode += read_bytes(conn, leftover)
+            # Guarantee we read 4 bytes of mode from client
+            if len(temp_mode) < 4:
+                leftover = 4 - len(temp_mode)
+                temp_mode += read_bytes(conn, leftover)
 
-                # read the file name from client
-                tempFile = conn.recv(1024).decode("utf-8")
-                MODE = temp_mode.decode('utf=8').strip()
-                FILE = tempFile.strip()
+            # read the file name from client
+            tempFile = conn.recv(1024).decode("utf-8")
+            MODE = temp_mode.decode('utf=8').strip()
+            FILE = tempFile.strip()
 
-                print("mode:", MODE)
-                print("file:", FILE)
+            print("mode:", MODE)
+            print("file:", FILE)
 
-                if MODE == "up":
-                    FILE = FILE.split('.')    # For testing
-                    FILE = FILE[0] + "_testing." + FILE[1]
-                    if not recv_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
-                        print("failed to save file")
-                    else:
-                        print("file saved!")
-                elif MODE == "down":
-                    if not send_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
-                        print("failed to read file")
-                    else:
-                        print("file sent")
-                print("done")
+            if MODE == "up":
+                FILE = FILE.split('.')    # For testing
+                FILE = FILE[0] + "_testing." + FILE[1]
+                if not recv_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
+                    print("failed to save file")
+                else:
+                    print("file saved!")
+            elif MODE == "down":
+                if not send_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
+                    print("failed to read file")
+                else:
+                    print("file sent")
+            print("done")
+
+
+def get_secrets(conn, BLOCK_SIZE_BYTES):
+    with open("private_key.pem", "rb") as key_file:
+        PRIVATE_KEY = serialization.load_pem_private_key(
+            key_file.read(),
+            password=None,
+            backend=default_backend()
+        )
+        enc_auth_token = conn.recv(256)  # encrypted auth token is 256 bytes
+        auth_token = PRIVATE_KEY.decrypt(
+            enc_auth_token,
+            padding.OAEP(
+                mgf=padding.MGF1(
+                    algorithm=hashes.SHA256()
+                ),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        
+        # Parse secret key and IV from the received message.
+        SECRET_KEY = auth_token[:BLOCK_SIZE_BYTES]
+        IV = auth_token[BLOCK_SIZE_BYTES:]
+
+        return SECRET_KEY, IV
 
 
 def read_bytes(conn, count):
