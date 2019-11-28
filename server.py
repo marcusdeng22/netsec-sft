@@ -2,7 +2,7 @@
 # Server
 
 import socket
-from crypto import genOTP, byteXor, recv_file, send_file
+from crypto import genOTP, XOR_bytes, recv_file, send_file
 import random
 
 from cryptography.hazmat.primitives import hashes
@@ -47,7 +47,7 @@ def main():
             # send back verification: SECRET_KEY XOR IV
             # import secrets    #testing for failed authentication
             # IV = secrets.token_bytes(16)
-            verification = byteXor(SECRET_KEY, IV)
+            verification = XOR_bytes(SECRET_KEY, IV)
             conn.sendall(bytes(verification))
 
             # read the mode and file name from client

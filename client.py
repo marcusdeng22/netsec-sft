@@ -2,7 +2,7 @@
 # Client
 
 import socket
-from crypto import genOTP, byteXor, send_file, recv_file
+from crypto import genOTP, XOR_bytes, send_file, recv_file
 import secrets
 import sys
 
@@ -62,7 +62,7 @@ def main():
             mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
         s.sendall(auth_token)   # is 256 bytes long
         verification = s.recv(16)   # 16 byte XOR of secret key and IV
-        if verification == bytes(byteXor(SECRET_KEY, IV)):
+        if verification == bytes(XOR_bytes(SECRET_KEY, IV)):
             print("verified server!")
         else:
             print("failed to verify")

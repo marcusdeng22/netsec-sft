@@ -12,8 +12,8 @@ def integrity_hasher():
     # Generator functions maintain state, so this should result in a digest
     #   of the entire file :)
 
-# xors two bytes objects together
-def byteXor(byte1, byte2):
+# XORs two bytes objects together
+def XOR_bytes(byte1, byte2):
     ret = bytearray()
     for b1, b2 in zip(byte1, byte2):
         ret.append(b1 ^ b2)
