@@ -81,57 +81,52 @@ def recv_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
     # Initialized outside of loop so we can
     #   1. append to it inside of the loop,
     #   2. deal with last less-than-block_size bytes of data after loop.
-    decryptedData = "".encode("utf-8")
+    
+    with open(fileName, "wb") as file:
+        while True:
+            incoming = conn.recv(1024)
 
-    while True:
-        incoming = conn.recv(1024)
+            # if we recv'd empty string, client closed connection,
+            if not incoming:
+                break  # so break from loop.
+                # buff will be less than block_size bytes b/c while loop.
 
-        # if we recv'd empty string, client closed connection,
-        if not incoming:
-            break  # so break from loop.
-            # buff will be less than block_size bytes b/c while loop.
+            # else, continue processing data
 
-        # else, continue processing data
+            buff += incoming
 
-        buff += incoming
+            # Want at least block_size bytes to XOR with our key.
+            num_bytes = len(buff)
+            while num_bytes >= BLOCK_SIZE_BYTES*2:
+                # Can lookahead for the integrity hash by consuming until *2
+                # Note that this requires the block size and integrity hash to
+                #   be of the same length. Could make it more flexible by multiplying
+                #   by however many times larger the integrity hash is, but then
+                #   on the last block we'd need to consider the case in which the
+                #   hash is smaller, and honestly we're going for simplicity here.
 
-        # Want at least block_size bytes to XOR with our key.
-        num_bytes = len(buff)
-        while num_bytes >= BLOCK_SIZE_BYTES*2:
-            # Can lookahead for the integrity hash by consuming until *2
-            # Note that this requires the block size and integrity hash to
-            #   be of the same length. Could make it more flexible by multiplying
-            #   by however many times larger the integrity hash is, but then
-            #   on the last block we'd need to consider the case in which the
-            #   hash is smaller, and honestly we're going for simplicity here.
+                # Receive a block of encrypted bytes.
+                encrypted_bytes, buff = buff[:BLOCK_SIZE_BYTES], buff[BLOCK_SIZE_BYTES:]
+                num_bytes -= BLOCK_SIZE_BYTES
 
-            # Receive a block of encrypted bytes.
-            encrypted_bytes, buff = buff[:BLOCK_SIZE_BYTES], buff[BLOCK_SIZE_BYTES:]
-            num_bytes -= BLOCK_SIZE_BYTES
+                plainbytes = XOR_bytes(key_bytes, encrypted_bytes)
+                file.write(plainbytes)
 
-            plainbytes = XOR_bytes(key_bytes, encrypted_bytes)
-            decryptedData += plainbytes
+                next(h)
+                integrity_hash = h.send(plainbytes)
 
-            next(h)
-            integrity_hash = h.send(plainbytes)
+                key_bytes = genOTP(SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES)
 
-            key_bytes = genOTP(SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES)
+        # Otherwise, deal with the last less-than-block_size bytes of data
+        # Get the actual leftover number of data bytes pertaining to the message.
+        num_bytes = num_bytes % BLOCK_SIZE_BYTES
 
+        # Break apart the message bytes from the hash bytes
+        cryptbytes, hashbytes = buff[:num_bytes], buff[num_bytes:]
 
-    # Authentication failure check
-    if len(buff) == 0:
-        return False
-
-    # Otherwise, deal with the last less-than-block_size bytes of data
-    # Get the actual leftover number of data bytes pertaining to the message.
-    num_bytes = num_bytes % BLOCK_SIZE_BYTES
-
-    # Break apart the message bytes from the hash bytes
-    cryptbytes, hashbytes = buff[:num_bytes], buff[num_bytes:]
-
-    # Decrypt the message bytes
-    plainbytes = XOR_bytes(key_bytes, cryptbytes)
-    decryptedData += plainbytes
+        # Decrypt the message bytes
+        plainbytes = XOR_bytes(key_bytes, cryptbytes)
+        file.write(plainbytes)
 
     # Final data hash
     next(h)
@@ -139,14 +134,8 @@ def recv_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
 
     next(h)
     integrity_hash = h.send(INTEGRITY_KEY)
-    for i in range(len(integrity_hash)):
-        if integrity_hash[i] != hashbytes[i]:
-            return False
-
-    # write out data
-    try:
-        with open(fileName, "wb") as file:
-            file.write(decryptedData)
-    except:
+    if integrity_hash != hashbytes:
+        print("Integrity failure")
         return False
     return True
+

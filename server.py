@@ -71,13 +71,13 @@ def main():
                 tempFile = conn.recv(1024).decode("utf-8")
                 MODE = temp_mode.decode('utf=8').strip()
                 FILE = tempFile.strip()
-                FILE = FILE.split('.')    # For testing
-                FILE = FILE[0] + "_testing." + FILE[1]
 
                 print("mode:", MODE)
                 print("file:", FILE)
 
                 if MODE == "up":
+                    FILE = FILE.split('.')    # For testing
+                    FILE = FILE[0] + "_testing." + FILE[1]
                     if not recv_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
                         print("failed to save file")
                     else:

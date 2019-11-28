@@ -69,7 +69,6 @@ def main():
                 print("failed to download; check if file exists")
             else:
                 print("file downloaded")
-            s.sendall("ok".encode("utf-8")) # hack to notify server we're done
         print("done")
 
 
