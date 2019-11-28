@@ -3,7 +3,16 @@ from crypto import integrity_hasher, XOR_bytes, genOTP
 
 # reads a file and sends it as an encrypted bytestring and sends an integrity hash
 # returns True if successful, False if file does not exist
-def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, s):
+def send_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
+
+    # Create integrity key from received secret key + 1
+    INTEGRITY_KEY = bytearray(SECRET_KEY)
+    INTEGRITY_KEY[BLOCK_SIZE_BYTES-1] += 1
+    INTEGRITY_KEY = bytes(INTEGRITY_KEY)
+    
+    # Generate first block of OTP
+    key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)
+
     try:
         with open(fileName, 'rb') as file:
             h = integrity_hasher(BLOCK_SIZE_BYTES)
@@ -22,7 +31,7 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, 
                 # If end of file,
                 if num_bytes < BLOCK_SIZE_BYTES:
                     # Only XOR as much of the key as there is message.
-                    cipherbytes = XOR_bytes(key_block, from_file)
+                    cipherbytes = XOR_bytes(key_bytes, from_file)
 
                     # Send the last of the encrypted message
                     s.sendall(cipherbytes)
@@ -34,13 +43,13 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, 
                     return True
 
                 # else, process one block of bytes at a time.
-                cipherbytes = XOR_bytes(key_block, from_file)
+                cipherbytes = XOR_bytes(key_bytes, from_file)
 
                 # Send over network.
                 s.sendall(cipherbytes)
 
                 # Generate a block of secret passkey
-                key_block = genOTP(SECRET_KEY, cipherbytes, BLOCK_SIZE_BYTES)
+                key_bytes = genOTP(SECRET_KEY, cipherbytes, BLOCK_SIZE_BYTES)
     
     except FileNotFoundError:
         return False
@@ -49,9 +58,17 @@ def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, 
 # writes to a file if successful decryption and matching integrity hash
 # returns True if successful write, False otherwise
 # does not remove the file on failure
-def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, conn):
+def recv_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
     h = integrity_hasher(BLOCK_SIZE_BYTES)
     integrity_hash = ''
+    
+    # Create an integrity key from secret key + 1
+    INTEGRITY_KEY = bytearray(SECRET_KEY)
+    INTEGRITY_KEY[BLOCK_SIZE_BYTES-1] += 1
+    INTEGRITY_KEY = bytes(INTEGRITY_KEY)
+
+    # Generate first block of OTP
+    key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)
 
     # maintain two vars, 'buff' and 'incoming'.
     #   recv'ing into 'incoming' instead of immediately appending to
@@ -92,13 +109,13 @@ def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, 
             encrypted_bytes, buff = buff[:BLOCK_SIZE_BYTES], buff[BLOCK_SIZE_BYTES:]
             num_bytes -= BLOCK_SIZE_BYTES
 
-            plainbytes = XOR_bytes(key_block, encrypted_bytes)
+            plainbytes = XOR_bytes(key_bytes, encrypted_bytes)
             decryptedData += plainbytes
 
             next(h)
             integrity_hash = h.send(plainbytes)
 
-            key_block = genOTP(SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES)
+            key_bytes = genOTP(SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES)
 
 
     # Authentication failure check
@@ -113,7 +130,7 @@ def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, BLOCK_SIZE_BYTES, 
     cryptbytes, hashbytes = buff[:num_bytes], buff[num_bytes:]
 
     # Decrypt the message bytes
-    plainbytes = XOR_bytes(key_block, cryptbytes)
+    plainbytes = XOR_bytes(key_bytes, cryptbytes)
     decryptedData += plainbytes
 
     # Final data hash

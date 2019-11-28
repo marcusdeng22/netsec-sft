@@ -33,12 +33,6 @@ def main():
     # Generate a secret key and IV
     SECRET_KEY = secrets.token_bytes(BLOCK_SIZE_BYTES)
     IV = secrets.token_bytes(BLOCK_SIZE_BYTES)
-    # Create an integrity key from secret key + 1
-    INTEGRITY_KEY = bytearray(SECRET_KEY)
-    INTEGRITY_KEY[BLOCK_SIZE_BYTES-1] += 1
-    INTEGRITY_KEY = bytes(INTEGRITY_KEY)
-
-    key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)  # Generate first block of OTP
 
 
     HOST = 'localhost'
@@ -84,14 +78,14 @@ def main():
 
             # select mode, and execute
             if MODE == "up":
-                if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, BLOCK_SIZE_BYTES, s):
+                if not send_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
                     print("failed to upload; check if file exists")
                 else:
                     print("file uploaded")
             elif MODE == "down":
                 FILE = FILE.split('.')    # For testing
                 FILE = FILE[0] + "_testing." + FILE[1]
-                if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_bytes, BLOCK_SIZE_BYTES, s):
+                if not recv_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
                     print("failed to download; check if file exists")
                 else:
                     print("file downloaded")
