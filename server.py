@@ -2,7 +2,8 @@
 # Server
 
 import socket
-from crypto import genOTP, XOR_bytes, recv_file, send_file
+from crypto import genOTP, XOR_bytes
+from utils import recv_file, send_file
 import random
 
 from cryptography.hazmat.primitives import hashes

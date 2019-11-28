@@ -2,7 +2,8 @@
 # Client
 
 import socket
-from crypto import genOTP, XOR_bytes, send_file, recv_file
+from crypto import genOTP, XOR_bytes
+from utils import send_file, recv_file
 import secrets
 import sys
 
