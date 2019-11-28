@@ -2,7 +2,7 @@
 # Server
 
 import socket
-from crypto import genOTP, byteXor, writeFile, readFile
+from crypto import genOTP, byteXor, recv_file, send_file
 import random
 
 from cryptography.hazmat.primitives import hashes
@@ -63,12 +63,12 @@ def main():
             print("file:", FILE)
 
             if MODE == "up":
-                if not writeFile(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, conn):
+                if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, conn):
                     print("failed to save file")
                 else:
                     print("file saved!")
             elif MODE == "down":
-                if not readFile(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, conn):
+                if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, conn):
                     print("failed to read file")
                 else:
                     print("file sent")

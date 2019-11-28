@@ -64,7 +64,7 @@ def crypticate(secret_key, prebytes, shift=0):
 
 # reads a file and sends it as an encrypted bytestring and sends an integrity hash
 # returns True if successful, False if file does not exist
-def readFile(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
+def send_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
     try:
         with open(fileName, 'rb') as file:
             h = integrity_hasher()
@@ -105,13 +105,14 @@ def readFile(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s
                 # Generate a block of secret passkey
                 key_block = genOTP(SECRET_KEY, cipherbytes)  # Receive a hex string using the ciper block we just created
                 key_block = int(key_block, 16)  # Create an integer
+    
     except FileNotFoundError:
         return False
 
 # writes to a file if successful decryption and matching integrity hash
 # returns True if successful write, False otherwise
 # does not remove the file on failure
-def writeFile(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, conn):
+def recv_file(fileName, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, conn):
     h = integrity_hasher()
     integrity_hash = ''
 

@@ -2,7 +2,7 @@
 # Client
 
 import socket
-from crypto import genOTP, byteXor, readFile, writeFile
+from crypto import genOTP, byteXor, send_file, recv_file
 import secrets
 import sys
 
@@ -76,13 +76,13 @@ def main():
 
         # select mode, and execute
         if MODE == "up":
-            if not readFile(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
+            if not send_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
                 print("failed to upload; check if file exists")
             else:
                 print("file uploaded")
         elif MODE == "down":
             # FILE += "_client"  # for debugging
-            if not writeFile(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
+            if not recv_file(FILE, SECRET_KEY, INTEGRITY_KEY, key_block, block_size_bytes, s):
                 print("failed to download; check if file exists")
             else:
                 print("file downloaded")
