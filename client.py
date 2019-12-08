@@ -60,15 +60,16 @@ def main():
         
         temp_mode_bytes = bytearray()
         temp_mode_bytes += chr(file_name_len_blocks).encode('utf-8') + temp_mode.encode('utf-8')
-        
         print(temp_mode_bytes)
-        s.sendall(temp_mode_bytes)
+        
+        key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)
+        encrypt_bytes = XOR_bytes(key_bytes, temp_mode_bytes)
+        s.sendall(encrypt_bytes)
 
         return
         
         combined = temp_mode + temp_file
 
-        extra_block = IV
         for i in range(len(combined) / BLOCK_SIZE_BYTES):
             key_bytes = genOTP(SECRET_KEY, extra_block, BLOCK_SIZE_BYTES)
             encrypted_bytes = XOR_bytes(key_bytes, combined[i*BLOCK_SIZE_BYTES:(i+1)*BLOCK_SIZE_BYTES])

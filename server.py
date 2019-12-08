@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
-from crypto import XOR_bytes
+from crypto import genOTP, XOR_bytes
 from utils import recv_file, send_file
 
 def main():
@@ -30,19 +30,24 @@ def main():
             # Authenticate self to client: open private key to decrypt message: secret key concatenated with IV
             SECRET_KEY, IV = get_secrets(conn, BLOCK_SIZE_BYTES)
 
+            key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)
+
             file_name_len_blocks = conn.recv(1)
             # if no data then our authentication was bad and the client closed the connection
             if not file_name_len_blocks:
                 print("Authentication failure")
                 return
-
-            print(ord(file_name_len_blocks.decode('utf-8')))
-            return
             
             # Guarantee we read block_size_bytes of mode from client, minus the first byte, which was file_name_length_blocks
             temp_mode = read_bytes(conn, BLOCK_SIZE_BYTES-1)
-            # decrypt mode
+            # decrypt length and mode
 
+            combined = file_name_len_blocks + temp_mode
+            decrypt_bytes = XOR_bytes(key_bytes, combined)
+            
+            file_name_len_blocks = decrypt_bytes[0]
+            mode = decrypt_bytes[1:BLOCK_SIZE_BYTES].decode('utf-8').strip()
+            print(file_name_len_blocks, mode)
 
             return
 
@@ -53,17 +58,17 @@ def main():
 
             FILE = temp_file.strip()
 
-            print("mode:", MODE)
+            print("mode:", mode)
             print("file:", FILE)
 
-            if MODE == "up":
+            if mode == "up":
                 FILE = FILE.split('.')    # For testing
                 FILE = FILE[0] + "_testing." + FILE[1]
                 if not recv_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
                     print("failed to save file")
                 else:
                     print("file saved!")
-            elif MODE == "down":
+            elif mode == "down":
                 if not send_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
                     print("failed to read file")
                 else:
