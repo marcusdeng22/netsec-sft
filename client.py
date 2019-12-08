@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
-from crypto import XOR_bytes
+from crypto import genOTP, XOR_bytes
 from utils import send_file, recv_file
 
 
@@ -50,22 +50,51 @@ def main():
             return
 
         # send the mode and file name so server knows what to do
-        temp_mode = "up  " if MODE == "up" else "down"
+        temp_mode = ' ' * (BLOCK_SIZE_BYTES - len(MODE) - 1) + MODE
+
+        print(len(FILE))
+        file_name_len_blocks = len(FILE) // BLOCK_SIZE_BYTES + 1
+        file_name_padding = BLOCK_SIZE_BYTES - len(FILE) % BLOCK_SIZE_BYTES
+        print(file_name_padding)
+        temp_file = FILE + ' ' * file_name_padding
+        
+        temp_mode_bytes = bytearray()
+        temp_mode_bytes += chr(file_name_len_blocks).encode('utf-8') + temp_mode.encode('utf-8')
+        
+        print(temp_mode_bytes)
+        s.sendall(temp_mode_bytes)
+
+        return
+        
+        combined = temp_mode + temp_file
+
+        extra_block = IV
+        for i in range(len(combined) / BLOCK_SIZE_BYTES):
+            key_bytes = genOTP(SECRET_KEY, extra_block, BLOCK_SIZE_BYTES)
+            encrypted_bytes = XOR_bytes(key_bytes, combined[i*BLOCK_SIZE_BYTES:(i+1)*BLOCK_SIZE_BYTES])
+
+            s.sendall(encrypted_bytes)
+
+            extra_block = encrypted_bytes
+
+
+            
+
+        
         s.sendall(temp_mode.encode("utf-8"))
 
-        temp_file = " " * (1024 - len(FILE)) + FILE
         s.sendall(temp_file.encode("utf-8"))
 
         # select mode, and execute
         if MODE == "up":
-            if not send_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
+            if not send_file(FILE, SECRET_KEY, extra_block, BLOCK_SIZE_BYTES, s):
                 print("failed to upload; check if file exists")
             else:
                 print("file uploaded")
         elif MODE == "down":
             FILE = FILE.split('.')    # For testing
             FILE = FILE[0] + "_testing." + FILE[1]
-            if not recv_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
+            if not recv_file(FILE, SECRET_KEY, extra_block, BLOCK_SIZE_BYTES, s):
                 print("failed to download; check if file exists")
             else:
                 print("file downloaded")

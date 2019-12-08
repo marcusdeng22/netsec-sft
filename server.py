@@ -30,24 +30,27 @@ def main():
             # Authenticate self to client: open private key to decrypt message: secret key concatenated with IV
             SECRET_KEY, IV = get_secrets(conn, BLOCK_SIZE_BYTES)
 
-            # send back verification: SECRET_KEY XOR IV
-            verification = XOR_bytes(SECRET_KEY, IV)
-            conn.sendall(verification)
-
-            temp_mode = conn.recv(4)
+            file_name_len_blocks = conn.recv(1)
             # if no data then our authentication was bad and the client closed the connection
-            if not temp_mode:
+            if not file_name_len_blocks:
                 print("Authentication failure")
                 return
 
-            # Guarantee we read 4 bytes of mode from client
-            if len(temp_mode) < 4:
-                leftover = 4 - len(temp_mode)
-                temp_mode += read_bytes(conn, leftover)
-            MODE = temp_mode.decode('utf=8').strip()
+            print(ord(file_name_len_blocks.decode('utf-8')))
+            return
+            
+            # Guarantee we read block_size_bytes of mode from client, minus the first byte, which was file_name_length_blocks
+            temp_mode = read_bytes(conn, BLOCK_SIZE_BYTES-1)
+            # decrypt mode
+
+
+            return
 
             # read the file name from client
-            temp_file = read_bytes(conn, 1024).decode("utf-8")
+            temp_file = read_bytes(conn, 1024).decode("utf-8").strip()
+
+            # decrypt file
+
             FILE = temp_file.strip()
 
             print("mode:", MODE)
@@ -90,6 +93,10 @@ def get_secrets(conn, BLOCK_SIZE_BYTES):
         # Parse secret key and IV from the received message.
         SECRET_KEY = auth_token[:BLOCK_SIZE_BYTES]
         IV = auth_token[BLOCK_SIZE_BYTES:]
+
+        # send back verification: SECRET_KEY XOR IV
+        verification = XOR_bytes(SECRET_KEY, IV)
+        conn.sendall(verification)
 
         return SECRET_KEY, IV
 
