@@ -23,6 +23,7 @@ def send_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, s):
                     # Result is a bytes-like object of x bytes, though each element
                     # is an int already.
                 num_bytes = len(from_file)
+                print(from_file)
 
                 # Dump the plainbytes into the integrity hash
                 next(h)
@@ -110,6 +111,7 @@ def recv_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
                 num_bytes -= BLOCK_SIZE_BYTES
 
                 plainbytes = XOR_bytes(key_bytes, encrypted_bytes)
+                print(plainbytes)
                 file.write(plainbytes)
 
                 next(h)
@@ -126,6 +128,7 @@ def recv_file(fileName, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
 
         # Decrypt the message bytes
         plainbytes = XOR_bytes(key_bytes, cryptbytes)
+        print(plainbytes)
         file.write(plainbytes)
 
     # Final data hash

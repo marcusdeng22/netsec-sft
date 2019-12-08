@@ -46,7 +46,7 @@ def main():
             
             file_name_len_blocks = decrypted_bytes[0]
             mode = decrypted_bytes[1:BLOCK_SIZE_BYTES].decode('utf-8').strip()
-            print(file_name_len_blocks, mode)
+            #print(file_name_len_blocks, mode)
 
 
             # read the file name from client
@@ -61,25 +61,19 @@ def main():
                 file_name += decrypted_bytes.decode('utf-8')
 
             file_name = file_name.strip()
-            print(file_name)
+            #print("\"", file_name, "\"", sep='')
 
-            return
-
-
-            # decrypt file
-
-            print("mode:", mode)
-            print("file:", file_name)
 
             if mode == "up":
-                FILE = FILE.split('.')    # For testing
-                FILE = FILE[0] + "_testing." + FILE[1]
-                if not recv_file(FILE, SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES, conn):
+                file_name = file_name.split('.')    # For testing
+                file_name[-2] += "_testing"
+                file_name = '.'.join(file_name)
+                if not recv_file(file_name, SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES, conn):
                     print("failed to save file")
                 else:
                     print("file saved!")
             elif mode == "down":
-                if not send_file(FILE, SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES, conn):
+                if not send_file(file_name, SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES, conn):
                     print("failed to read file")
                 else:
                     print("file sent")

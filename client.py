@@ -52,39 +52,39 @@ def main():
         # send the mode and file name so server knows what to do
         temp_mode = ' ' * (BLOCK_SIZE_BYTES - len(mode) - 1) + mode
 
-        print(len(file_name))
+        #print(len(file_name))
         file_name_len_blocks = len(file_name) // BLOCK_SIZE_BYTES + 1
         file_name_padding = BLOCK_SIZE_BYTES - len(file_name) % BLOCK_SIZE_BYTES
-        print(file_name_padding)
+        #print(file_name_padding)
         padded_file_name = file_name + (' ' * file_name_padding).encode('utf-8')
-        print(padded_file_name)
+        #print(padded_file_name)
         
         temp_mode_bytes = bytearray()
         temp_mode_bytes += chr(file_name_len_blocks).encode('utf-8') + temp_mode.encode('utf-8')
-        print(temp_mode_bytes)
+        #print(temp_mode_bytes)
         
         key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)
-        encrypt_bytes = XOR_bytes(key_bytes, temp_mode_bytes)
-        s.sendall(encrypt_bytes)
+        encrypted_bytes = XOR_bytes(key_bytes, temp_mode_bytes)
+        s.sendall(encrypted_bytes)
         
 
         for i in range(file_name_len_blocks):
-            key_bytes = genOTP(SECRET_KEY, encrypt_bytes, BLOCK_SIZE_BYTES)
+            key_bytes = genOTP(SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES)
             encrypted_bytes = XOR_bytes(key_bytes, padded_file_name[i*BLOCK_SIZE_BYTES:(i+1)*BLOCK_SIZE_BYTES])
             s.sendall(encrypted_bytes)
 
-        return
 
         # select mode, and execute
         if mode == "up":
-            if not send_file(file_name, SECRET_KEY, encrypt_bytes, BLOCK_SIZE_BYTES, s):
+            if not send_file(file_name, SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES, s):
                 print("failed to upload; check if file exists")
             else:
                 print("file uploaded")
         elif mode == "down":
-            file_name = file_name.split('.')    # For testing
-            file_name = file_name[0] + "_testing." + file_name[1]
-            if not recv_file(file_name, SECRET_KEY, extra_block, BLOCK_SIZE_BYTES, s):
+            file_name = file_name.decode('utf-8').split('.')    # For testing
+            file_name[-2] += "_testing"
+            file_name = '.'.join(file_name)
+            if not recv_file(file_name, SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES, s):
                 print("failed to download; check if file exists")
             else:
                 print("file downloaded")
@@ -113,10 +113,10 @@ def auth_server(s, SECRET_KEY, IV, BLOCK_SIZE_BYTES):
         s.sendall(auth_token)  # 256 bytes long
         verification = s.recv(BLOCK_SIZE_BYTES)   # XOR of secret key and IV
         if verification == XOR_bytes(SECRET_KEY, IV):
-            print("Successfully authenticated server!")
+            print("Successfully authenticated server!\n")
             return True
         else:
-            print("Failed to authenticate server")
+            print("Failed to authenticate server\n")
             return False
 
 
