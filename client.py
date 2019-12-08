@@ -51,22 +51,15 @@ def main():
 
         # send the mode and file name so server knows what to do
         temp_mode = ' ' * (BLOCK_SIZE_BYTES - len(mode) - 1) + mode
-        # print("temp_mode:", temp_mode, len(temp_mode))
 
-        #print(len(file_name))
         file_name_len_blocks = len(file_name) // BLOCK_SIZE_BYTES + 1
         file_name_padding = BLOCK_SIZE_BYTES - len(file_name) % BLOCK_SIZE_BYTES
-        #print(file_name_padding)
         padded_file_name = file_name + (' ' * file_name_padding).encode('utf-8')
-        #print(padded_file_name)
-        # print("file_name_len_blocks:", file_name_len_blocks)
-        # print("file_name_padding:", file_name_padding)
-        # print("padded_file_name:", padded_file_name)
 
         temp_mode_bytes = bytearray()
         temp_mode_bytes += chr(file_name_len_blocks).encode('utf-8') + temp_mode.encode('utf-8')
-        # print("temp_mode_bytes:", temp_mode_bytes)
 
+        # data sent is 16 bytes; 1st byte is the # of blocks to read for the file name, and then the last bytes are for mode
         key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)
         encrypted_bytes = XOR_bytes(key_bytes, temp_mode_bytes)
         s.sendall(encrypted_bytes)
@@ -86,7 +79,10 @@ def main():
                 print("file uploaded")
         elif mode == "down":
             file_name = file_name.decode('utf-8').split('.')    # For testing
-            file_name[-2] += "_testing"
+            if (len(file_name) >= 2):
+                file_name[-2] += "_client"
+            else:
+                file_name[0] += "_client"
             file_name = '.'.join(file_name)
             if not recv_file(file_name, SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES, s):
                 print("failed to download; check if file exists")

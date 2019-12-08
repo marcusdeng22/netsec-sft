@@ -2,7 +2,7 @@
 sft/
 
 #input tests
-*testing.txt
+*.txt
 
 # old files
 old/

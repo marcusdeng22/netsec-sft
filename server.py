@@ -46,8 +46,6 @@ def main():
 
             file_name_len_blocks = decrypted_bytes[0]
             mode = decrypted_bytes[1:BLOCK_SIZE_BYTES].decode('utf-8').strip()
-            # print(file_name_len_blocks, mode)
-
 
             # read the file name from client
             file_name = ''
@@ -61,12 +59,13 @@ def main():
                 file_name += decrypted_bytes.decode('utf-8')
 
             file_name = file_name.strip()
-            #print("\"", file_name, "\"", sep='')
-
 
             if mode == "up":
                 file_name = file_name.split('.')    # For testing
-                file_name[-2] += "_testing"
+                if (len(file_name) >= 2):
+                    file_name[-2] += "_server"
+                else:
+                    file_name[0] += "_server"
                 file_name = '.'.join(file_name)
                 if not recv_file(file_name, SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES, conn):
                     print("failed to save file")
@@ -77,8 +76,7 @@ def main():
                     print("failed to read file")
                 else:
                     print("file sent")
-            print("done")
-
+    print("done")
 
 def get_secrets(conn, BLOCK_SIZE_BYTES):
     with open("private_key.pem", "rb") as key_file:
