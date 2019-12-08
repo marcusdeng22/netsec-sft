@@ -35,27 +35,27 @@ def main():
             if not file_name_len_blocks:
                 print("Authentication failure")
                 return
-            
+
             # Guarantee we read block_size_bytes of mode from client, minus the first byte, which was file_name_length_blocks
             temp_mode = read_bytes(conn, BLOCK_SIZE_BYTES-1)
-            
+
             # decrypt length and mode
             key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)
-            encrypyted_bytes = file_name_len_blocks + temp_mode
-            decrypted_bytes = XOR_bytes(key_bytes, encrypyted_bytes)
-            
+            encrypted_bytes = file_name_len_blocks + temp_mode
+            decrypted_bytes = XOR_bytes(key_bytes, encrypted_bytes)
+
             file_name_len_blocks = decrypted_bytes[0]
             mode = decrypted_bytes[1:BLOCK_SIZE_BYTES].decode('utf-8').strip()
-            #print(file_name_len_blocks, mode)
+            # print(file_name_len_blocks, mode)
 
 
             # read the file name from client
             file_name = ''
             for _ in range(file_name_len_blocks):
-                key_bytes = genOTP(SECRET_KEY, encrypyted_bytes, BLOCK_SIZE_BYTES)
+                key_bytes = genOTP(SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES)
 
                 encrypted_bytes = read_bytes(conn, BLOCK_SIZE_BYTES)
-                
+
                 decrypted_bytes = XOR_bytes(key_bytes, encrypted_bytes)
 
                 file_name += decrypted_bytes.decode('utf-8')
@@ -98,7 +98,7 @@ def get_secrets(conn, BLOCK_SIZE_BYTES):
                 label=None
             )
         )
-        
+
         # Parse secret key and IV from the received message.
         SECRET_KEY = auth_token[:BLOCK_SIZE_BYTES]
         IV = auth_token[BLOCK_SIZE_BYTES:]

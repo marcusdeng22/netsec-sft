@@ -1,6 +1,9 @@
 # virtual environment
 sft/
 
+#input tests
+*testing.txt
+
 # old files
 old/
 
