@@ -30,8 +30,6 @@ def main():
             # Authenticate self to client: open private key to decrypt message: secret key concatenated with IV
             SECRET_KEY, IV = get_secrets(conn, BLOCK_SIZE_BYTES)
 
-            key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)
-
             file_name_len_blocks = conn.recv(1)
             # if no data then our authentication was bad and the client closed the connection
             if not file_name_len_blocks:
@@ -40,36 +38,48 @@ def main():
             
             # Guarantee we read block_size_bytes of mode from client, minus the first byte, which was file_name_length_blocks
             temp_mode = read_bytes(conn, BLOCK_SIZE_BYTES-1)
-            # decrypt length and mode
-
-            combined = file_name_len_blocks + temp_mode
-            decrypt_bytes = XOR_bytes(key_bytes, combined)
             
-            file_name_len_blocks = decrypt_bytes[0]
-            mode = decrypt_bytes[1:BLOCK_SIZE_BYTES].decode('utf-8').strip()
+            # decrypt length and mode
+            key_bytes = genOTP(SECRET_KEY, IV, BLOCK_SIZE_BYTES)
+            encrypyted_bytes = file_name_len_blocks + temp_mode
+            decrypted_bytes = XOR_bytes(key_bytes, encrypyted_bytes)
+            
+            file_name_len_blocks = decrypted_bytes[0]
+            mode = decrypted_bytes[1:BLOCK_SIZE_BYTES].decode('utf-8').strip()
             print(file_name_len_blocks, mode)
+
+
+            # read the file name from client
+            file_name = ''
+            for _ in range(file_name_len_blocks):
+                key_bytes = genOTP(SECRET_KEY, encrypyted_bytes, BLOCK_SIZE_BYTES)
+
+                encrypted_bytes = read_bytes(conn, BLOCK_SIZE_BYTES)
+                
+                decrypted_bytes = XOR_bytes(key_bytes, encrypted_bytes)
+
+                file_name += decrypted_bytes.decode('utf-8')
+
+            file_name = file_name.strip()
+            print(file_name)
 
             return
 
-            # read the file name from client
-            temp_file = read_bytes(conn, 1024).decode("utf-8").strip()
 
             # decrypt file
 
-            FILE = temp_file.strip()
-
             print("mode:", mode)
-            print("file:", FILE)
+            print("file:", file_name)
 
             if mode == "up":
                 FILE = FILE.split('.')    # For testing
                 FILE = FILE[0] + "_testing." + FILE[1]
-                if not recv_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
+                if not recv_file(FILE, SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES, conn):
                     print("failed to save file")
                 else:
                     print("file saved!")
             elif mode == "down":
-                if not send_file(FILE, SECRET_KEY, IV, BLOCK_SIZE_BYTES, conn):
+                if not send_file(FILE, SECRET_KEY, encrypted_bytes, BLOCK_SIZE_BYTES, conn):
                     print("failed to read file")
                 else:
                     print("file sent")
